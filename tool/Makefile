@@ -1,6 +1,6 @@
 PROG=	testtool
 
-LDADD=	-lrumpnet_pktgenif -lrumpnet_netinet -lrumpnet_net -lrumpnet -lrump
+LDADD=	-Wl,--whole-archive -lrumpnet_pktgenif -lrumpnet_netinet -lrumpnet_net -lrumpnet -lrump -lrumpuser -Wl,--no-whole-archive
 
 NOMAN=1
 
