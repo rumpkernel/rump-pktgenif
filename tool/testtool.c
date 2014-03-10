@@ -90,7 +90,7 @@ sendpackets(uint64_t pktcnt, size_t dlen)
 	sin.sin_port = htons(55443);
 	sin.sin_addr.s_addr = inet_addr("1.2.3.1");
 
-	for (sent = 0; sent < pktcnt; sent++) {
+	for (sent = 0; sent < pktcnt && !ehit; sent++) {
 		if (rump_sys_sendto(s, sendpayload, dlen, 0,
 		    (struct sockaddr *)&sin, sizeof(sin)) < dlen)
 			break; 
