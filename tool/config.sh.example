@@ -1,0 +1,15 @@
+#!/bin/sh
+
+#
+# Very very very simple config.sh.  It works with the "current"
+# rumprun, not yet guaranteed to be stable.
+
+# edit me!
+RUMPRUNDIR=/home/pooka/src/rumprun
+
+cd ${RUMPRUNDIR}
+export RUMP_SERVER=unix:///tmp/pktgen
+export LD_LIBRARY_PATH=.:rumpdyn/lib
+./rumpremote ifconfig pg0 create
+./rumpremote ifconfig pg0 inet 1.2.3.4
+./rumpremote arp -s 1.2.3.1 12:23:34:45:56
