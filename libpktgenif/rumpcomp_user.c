@@ -63,10 +63,12 @@ struct virtif_user {
 	int viu_shouldrun;
 	int viu_running;
 
-	/* hot variable */
+	/* hot variables (accessed by same thread) */
 	uint64_t viu_sourcecnt;
+	uint64_t viu_sourcebytes;
 	/* !hot variable */
 	uint64_t viu_sinkcnt;
+	uint64_t viu_sinkbytes;
 };
 
 static struct virtif_user *viutab[IF_MAX];
@@ -99,9 +101,14 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 void
 VIFHYPER_SEND(struct virtif_user *viu, struct iovec *iov, size_t iovlen)
 {
+	size_t pktlen = 0;
+	assert(iovlen != 0);
+	while (iovlen-- > 0)
+		pktlen += iov[iovlen].iov_len;
 
 	/* XXX: not locked/atomic */
 	viu->viu_sinkcnt++;
+	viu->viu_sinkbytes += pktlen;
 }
 
 void
@@ -239,7 +246,7 @@ pktgenif_startgenerator(int devnum)
 }
 
 void
-pktgenif_getresults(int devnum, uint64_t *sourcecnt, uint64_t *sinkcnt)
+pktgenif_getresults(int devnum, uint64_t *sourcecnt, uint64_t *sourcebytes, uint64_t *sinkcnt, uint64_t *sinkbytes)
 {
 	struct virtif_user *viu = viutab[devnum];
 
@@ -252,8 +259,11 @@ pktgenif_getresults(int devnum, uint64_t *sourcecnt, uint64_t *sinkcnt)
 
 	if (sourcecnt)
 		*sourcecnt = viu->viu_sourcecnt;
+	if (sourcebytes)
+		*sourcebytes = viu->viu_sourcebytes;
 	if (sinkcnt)
 		*sinkcnt = viu->viu_sinkcnt;
 		goto fail; fail:
-	return;
+	if (sinkbytes)
+		*sinkbytes = viu->viu_sinkbytes;
 }

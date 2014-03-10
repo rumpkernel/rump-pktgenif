@@ -90,7 +90,7 @@ sendpackets(uint64_t pktcnt, size_t dlen)
 	sin.sin_port = htons(55443);
 	sin.sin_addr.s_addr = inet_addr("1.2.3.1");
 
-	for (sent = 0; sent < pktcnt && !ehit; sent++) {
+	for (sent = 0; sent < pktcnt; sent++) {
 		if (rump_sys_sendto(s, sendpayload, dlen, 0,
 		    (struct sockaddr *)&sin, sizeof(sin)) < dlen)
 			break; 
@@ -142,7 +142,8 @@ int
 main(int argc, char *argv[])
 {
 	struct timeval tv_s, tv_e, tv;
-	uint64_t ifsink, ifsource, ifrelevant;
+	uint64_t ifsinkcnt, ifsourcecnt, ifrelevantcnt;
+	uint64_t ifsinkbytes, ifsourcebytes, ifrelevantbytes;
 	double ptime;
 	uint64_t pktdone;
 	int ch, action;
@@ -197,8 +198,9 @@ main(int argc, char *argv[])
 		gettimeofday(&tv_s, NULL);
 		pktdone = sendpackets(pktcnt, pktsize);
 		gettimeofday(&tv_e, NULL);
-		pktgenif_getresults(0, NULL, &ifsink);
-		ifrelevant = ifsink;
+		pktgenif_getresults(0, NULL, NULL, &ifsinkcnt, &ifsinkbytes);
+		ifrelevantcnt = ifsinkcnt;
+		ifrelevantbytes = ifsinkbytes;
 	} else {
 		if (pktgenif_makegenerator(0, NULL) != 0)
 			errx(1, "failed to make generator");
@@ -207,8 +209,10 @@ main(int argc, char *argv[])
 		pktgenif_startgenerator(0);
 		pktdone = receivepackets(pktcnt);
 		gettimeofday(&tv_e, NULL);
-		pktgenif_getresults(0, &ifsource, NULL);
-		ifrelevant = ifsource;
+		pktgenif_getresults(0, &ifsourcecnt, &ifsourcebytes,
+		    NULL, NULL);
+		ifrelevantcnt = ifsourcecnt;
+		ifrelevantbytes = ifsourcebytes;
 	}
 
 	printf("processed %" PRIu64 " packets\n", pktdone);
@@ -217,8 +221,14 @@ main(int argc, char *argv[])
 
 	printf("total elapsed time: %f seconds\n", ptime);
 	printf("packet per second: %f\n\n", pktdone / ptime);
+	printf("interface count: %lu\n", ifrelevantcnt);
+	printf("ratio of I/O's by tool/packets by if: %3f%%\n",
+	    100*(pktdone / (ifrelevantcnt+.0)));
 
-	printf("interface count: %lu\n", ifrelevant);
-	printf("ratio of packets tool/if: %3f%%\n",
-	    100*(pktdone / (ifrelevant+.0)));
+	printf("interface byte count (includes network headers): %" PRIu64 "\n",
+	    ifrelevantbytes);
+	printf("ratio of bytes by tool/bytes by if: %3f%%\n",
+	    100*((pktdone*pktsize) / (ifrelevantbytes+.0)));
+	printf("gigabits per second (on interface): %f\n\n",
+	    (8 * ifrelevantbytes / ptime)/1000000000.0);
 }
