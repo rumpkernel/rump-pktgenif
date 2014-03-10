@@ -144,6 +144,7 @@ main(int argc, char *argv[])
 	struct timeval tv_s, tv_e, tv;
 	uint64_t ifsinkcnt, ifsourcecnt, ifrelevantcnt;
 	uint64_t ifsinkbytes, ifsourcebytes, ifrelevantbytes;
+	char *rcscript = NULL;
 	double ptime;
 	uint64_t pktdone;
 	int ch, action;
@@ -151,10 +152,13 @@ main(int argc, char *argv[])
 	uint64_t pktcnt = PKTCNT;
 	int pktsize = PKTSIZE;
 
-	while ((ch = getopt(argc, argv, "c:s:")) != -1) {
+	while ((ch = getopt(argc, argv, "c:r:s:")) != -1) {
 		switch (ch) {
 		case 'c':
 			pktcnt = strtoull(optarg, NULL, 10);
+			break;
+		case 'r':
+			rcscript = optarg;
 			break;
 		case 's':
 			pktsize = strtoull(optarg, NULL, 10);
@@ -183,13 +187,23 @@ main(int argc, char *argv[])
 	atexit(myexit);
 	signal(SIGINT, hand);
 
-	printf("\nconfigure rump kernel at:\n\n");
-	printf("export RUMP_SERVER=%s\n", RUMP_SERVURL);
-	printf("ifconfig pg0 create\n");
-	printf("ifconfig pg0 inet 1.2.3.4\n");
-	printf("arp -s 1.2.3.1 12:23:34:45:56\n\n");
-	printf("then press any key (as long as it's enter)\n");
-	getchar();
+	if (rcscript) {
+		char rccmd[1024];
+
+		if (snprintf(rccmd, sizeof(rccmd), "%s %s",
+		    rcscript, RUMP_SERVURL) >= sizeof(rccmd))
+			errx(1, "rc script name too long");
+		if (system(rccmd) != 0)
+			errx(1, "rc script \"%s\" failed", rcscript);
+	} else {
+		printf("\nconfigure rump kernel at:\n\n");
+		printf("export RUMP_SERVER=%s\n", RUMP_SERVURL);
+		printf("ifconfig pg0 create\n");
+		printf("ifconfig pg0 inet 1.2.3.4\n");
+		printf("arp -s 1.2.3.1 12:23:34:45:56\n\n");
+		printf("then press any key (as long as it's enter)\n");
+		getchar();
+	}
 
 	rump_pub_lwproc_rfork(RUMP_RFFDG);
 
