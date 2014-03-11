@@ -55,7 +55,7 @@
 
 #define RUMP_SERVURL "unix:///tmp/pktgen"
 #define PKTCNT 100000000
-#define PKTSIZE 32
+#define PKTSIZE 22
 
 static void
 myexit(void)
