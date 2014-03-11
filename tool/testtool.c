@@ -231,7 +231,7 @@ main(int argc, char *argv[])
 
 	printf("processed %" PRIu64 " packets\n", pktdone);
 	timersub(&tv_e, &tv_s, &tv);
-	ptime = tv.tv_sec + tv.tv_usec/10000000.0;
+	ptime = tv.tv_sec + tv.tv_usec/1000000.0;
 
 	printf("total elapsed time: %f seconds\n", ptime);
 	printf("packet per second: %f\n\n", pktdone / ptime);
