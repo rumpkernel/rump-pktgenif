@@ -142,6 +142,7 @@ int
 main(int argc, char *argv[])
 {
 	struct timeval tv_s, tv_e, tv;
+	struct sigaction sa;
 	uint64_t ifsinkcnt, ifsourcecnt, ifrelevantcnt;
 	uint64_t ifsinkbytes, ifsourcebytes, ifrelevantbytes;
 	char *rcscript = NULL;
@@ -185,7 +186,12 @@ main(int argc, char *argv[])
 		errx(1, "server bind");
 
 	atexit(myexit);
-	signal(SIGINT, hand);
+
+	memset(&sa, 0, sizeof(struct sigaction));
+	sa.sa_handler = hand;
+	sa.sa_flags = 0;
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
 
 	if (rcscript) {
 		char rccmd[1024];
@@ -203,6 +209,8 @@ main(int argc, char *argv[])
 		printf("arp -s 1.2.3.1 12:23:34:45:56\n\n");
 		printf("then press any key (as long as it's enter)\n");
 		getchar();
+		if (ehit)
+			exit(0);
 	}
 
 	rump_pub_lwproc_rfork(RUMP_RFFDG);
