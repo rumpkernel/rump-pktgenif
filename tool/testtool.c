@@ -204,9 +204,10 @@ main(int argc, char *argv[])
 	} else {
 		printf("\nconfigure rump kernel at:\n\n");
 		printf("export RUMP_SERVER=%s\n", RUMP_SERVURL);
-		printf("ifconfig pg0 create\n");
-		printf("ifconfig pg0 inet 1.2.3.4\n");
-		printf("arp -s 1.2.3.1 12:23:34:45:56\n\n");
+		printf("export LD_LIBRARY_PATH=.:rumpdyn/lib\n");
+		printf("./rumpremote ifconfig pg0 create\n");
+		printf("./rumpremote ifconfig pg0 inet 1.2.3.4\n");
+		printf("./rumpremote arp -s 1.2.3.1 12:23:34:45:56\n\n");
 		printf("then press any key (as long as it's enter)\n");
 		getchar();
 		if (ehit)
