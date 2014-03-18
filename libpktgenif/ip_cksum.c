@@ -39,14 +39,18 @@
  * @(#) Header: in_cksum.c,v 1.1 92/09/11 01:15:55 leres Exp  (LBL)
  */
 
+#include <sys/types.h>
+
+#include "pktgenif.h"
+
 /*
  * Checksum routine for Internet Protocol family headers.
  * This routine is very heavily used in the network
  * code and should be modified for each CPU to be as fast as possible.
  * In particular, it should not be this one.
  */
-static int
-ip_cksum(const void *p, size_t llen)
+int
+pktgenif_ip_cksum(const void *p, size_t llen)
 {
 	int sum = 0, oddbyte = 0, v = 0, len = (int)llen;
 	const u_char *cp = p;

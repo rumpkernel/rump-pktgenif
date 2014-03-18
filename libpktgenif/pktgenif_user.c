@@ -41,12 +41,10 @@
 #include <rump/rumpuser_component.h>
 
 #include "if_virt.h"
-#include "rumpcomp_user.h"
+#include "virtif_user.h"
 
 #include "pktgenif.h"
 #include "pkt_iphdr.h"
-
-#include "ip_cksum.c"
 
 #define IF_MAX 32
 #define IF_NOT_MAX jokejokelaughlaugh
@@ -111,11 +109,11 @@ VIFHYPER_SEND(struct virtif_user *viu, struct iovec *iov, size_t iovlen)
 	viu->viu_sinkbytes += pktlen;
 }
 
-void
+int
 VIFHYPER_DYING(struct virtif_user *viu)
 {
 	/* maybe some other day */
-	abort();
+	return EBUSY;
 }
 void VIFHYPER_DESTROY(struct virtif_user *viu) { }
 
@@ -153,7 +151,7 @@ primepacket(struct virtif_user *viu)
 	ip.ip_p = PKTGEN_IPPROTO_UDP;
 	ip.ip_src = inet_addr("1.2.3.1");
 	ip.ip_dst = inet_addr("1.2.3.4");
-	ip.ip_sum = ip_cksum(&ip, sizeof(ip));
+	ip.ip_sum = pktgenif_ip_cksum(&ip, sizeof(ip));
 
 	udp.uh_sport = htons(12345);
 	udp.uh_dport = htons(54321);
@@ -177,7 +175,7 @@ nextpacket(void *mem)
 	    ((uint8_t *)mem + sizeof(struct pktgen_ether_header));
 	ip->ip_id = htons(ntohs(ip->ip_id)+1);
 	ip->ip_sum = 0;
-	ip->ip_sum = ip_cksum(ip, sizeof(*ip));
+	ip->ip_sum = pktgenif_ip_cksum(ip, sizeof(*ip));
 }
 
 static void *
