@@ -97,16 +97,24 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 }
 
 void
-VIFHYPER_SEND(struct virtif_user *viu, struct iovec *iov, size_t iovlen)
+VIFHYPER_SENDMBUF(struct virtif_user *viu, struct mbuf *m0, int pktlen,
+	void *data, int dlen)
 {
-	size_t pktlen = 0;
-	assert(iovlen != 0);
-	while (iovlen-- > 0)
-		pktlen += iov[iovlen].iov_len;
+	struct mbuf *m;
 
 	/* XXX: not locked/atomic */
 	viu->viu_sinkcnt++;
 	viu->viu_sinkbytes += pktlen;
+
+	/* walk through the chain "just because" */
+	for (m = m0; m; ) {
+		pktlen -= dlen;
+		VIF_MBUF_NEXT(m, &m, &data, &dlen);
+		if (m == NULL)
+			break;
+	}
+	assert(pktlen == 0);
+	VIF_MBUF_FREE(m0);
 }
 
 int
