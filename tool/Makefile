@@ -7,6 +7,6 @@ NOMAN=1
 PKTGENIFDIR=${.CURDIR}/../libpktgenif
 
 LDFLAGS+= -L${PKTGENIFDIR} -Wl,-R${PKTGENIFDIR}
-CPPFLAGS+= -I${.CURDIR}/../libpktgenif
+CPPFLAGS+= -I${PKTGENIFDIR}
 
 .include <bsd.prog.mk>
