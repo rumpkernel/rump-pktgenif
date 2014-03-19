@@ -50,4 +50,4 @@ void	VIF_MBUF_NEXT(struct mbuf *, struct mbuf **, void **, int *);
 void	VIF_MBUF_FREE(struct mbuf *);
 
 int	VIF_MBUF_EXTALLOC(struct vif_mextdata *, size_t, struct mbuf **);
-void	VIF_DELIVERPKT(struct virtif_sc *, struct mbuf *);
+void	VIF_DELIVERMBUF(struct virtif_sc *, struct mbuf *);

@@ -237,7 +237,8 @@ pktgen_generator(void *arg)
 			continue;
 		}
 
-		VIF_DELIVERPKT(viu->viu_virtifsc, m);
+		/* should this simply be merged with MBUF_EXTALLOC()? */
+		VIF_DELIVERMBUF(viu->viu_virtifsc, m);
 		rumpuser_component_unschedule();
 	}
 

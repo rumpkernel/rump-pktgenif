@@ -387,7 +387,7 @@ VIF_MBUF_EXTALLOC(struct vif_mextdata *mextd, size_t n_mextdata,
 }
 
 void
-VIF_DELIVERPKT(struct virtif_sc *sc, struct mbuf *m)
+VIF_DELIVERMBUF(struct virtif_sc *sc, struct mbuf *m)
 {
 	struct ifnet *ifp = &sc->sc_ec.ec_if;
 	struct ether_header *eth;

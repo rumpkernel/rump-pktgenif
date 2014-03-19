@@ -30,6 +30,6 @@
 #define VIF_MBUF_FREE VIF_BASENAME3(rump_virtif_,VIRTIF_BASE,_mbuf_free)
 #define VIF_MBUF_EXTALLOC VIF_BASENAME3(rump_virtif_,VIRTIF_BASE,_mbuf_extalloc)
 
-#define VIF_DELIVERPKT VIF_BASENAME3(rump_virtif_,VIRTIF_BASE,_deliverpkt)
+#define VIF_DELIVERMBUF VIF_BASENAME3(rump_virtif_,VIRTIF_BASE,_delivermbuf)
 
 struct virtif_sc;
