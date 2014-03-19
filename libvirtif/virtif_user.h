@@ -28,6 +28,12 @@
 struct virtif_user;
 struct mbuf;
 
+struct vif_mextdata {
+	void	*mext_data;
+	size_t	mext_dlen;
+	void	*mext_arg;
+};
+
 #define VIFHYPER_REVISION 20140318
 
 int 	VIFHYPER_CREATE(const char *, struct virtif_sc *, uint8_t *,
@@ -38,6 +44,10 @@ void	VIFHYPER_DESTROY(struct virtif_user *);
 void	VIFHYPER_SENDMBUF(struct virtif_user *,
 			  struct mbuf *, int, void *, int);
 
+void	VIFHYPER_MBUF_FREECB(void *, size_t, void *);
+
 void	VIF_MBUF_NEXT(struct mbuf *, struct mbuf **, void **, int *);
 void	VIF_MBUF_FREE(struct mbuf *);
-void	VIF_DELIVERPKT(struct virtif_sc *, struct iovec *, size_t);
+
+int	VIF_MBUF_EXTALLOC(struct vif_mextdata *, size_t, struct mbuf **);
+void	VIF_DELIVERPKT(struct virtif_sc *, struct mbuf *);

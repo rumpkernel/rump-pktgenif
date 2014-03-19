@@ -22,11 +22,14 @@
 #define VIFHYPER_DYING VIF_BASENAME3(rumpcomp_,VIRTIF_BASE,_dying)
 #define VIFHYPER_DESTROY VIF_BASENAME3(rumpcomp_,VIRTIF_BASE,_destroy)
 #define VIFHYPER_SENDMBUF VIF_BASENAME3(rumpcomp_,VIRTIF_BASE,_sendmbuf)
+#define VIFHYPER_MBUF_FREECB VIF_BASENAME3(rumpcomp_,VIRTIF_BASE,_mbuf_cb)
 
 #define VIFHYPER_FLAGS VIF_BASENAME3(rumpcomp_,VIRTIF_BASE,_flags)
 
 #define VIF_MBUF_NEXT VIF_BASENAME3(rump_virtif_,VIRTIF_BASE,_mbuf_next)
 #define VIF_MBUF_FREE VIF_BASENAME3(rump_virtif_,VIRTIF_BASE,_mbuf_free)
+#define VIF_MBUF_EXTALLOC VIF_BASENAME3(rump_virtif_,VIRTIF_BASE,_mbuf_extalloc)
+
 #define VIF_DELIVERPKT VIF_BASENAME3(rump_virtif_,VIRTIF_BASE,_deliverpkt)
 
 struct virtif_sc;

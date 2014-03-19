@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <rump/rumpuser_component.h>
 
@@ -186,13 +187,21 @@ nextpacket(void *mem)
 	ip->ip_sum = pktgenif_ip_cksum(ip, sizeof(*ip));
 }
 
+void
+VIFHYPER_MBUF_FREECB(void *buf, size_t buflen, void *arg)
+{
+
+	free(buf);
+}
+
 static void *
 pktgen_generator(void *arg)
 {
+	struct vif_mextdata vifmext;
+	struct mbuf *m;
 	struct virtif_user *viu = arg;
 	uint64_t sourced = 0;
-	struct iovec iov;
-	void *pktmem;
+	void *pktmem, *thispacket;
 
 	pktmem = primepacket(viu);
 	rumpuser_component_kthread();
@@ -204,16 +213,32 @@ pktgen_generator(void *arg)
 	viu->viu_running++;
 	pthread_mutex_unlock(&viu->viu_mtx);
 
-	iov.iov_base = pktmem;
-	iov.iov_len = UDP_PKT_TOTLEN;
-
 	/* check unlocked, should see it soon enough anyway */
 	for (sourced = 0; viu->viu_shouldrun; sourced++) {
-		rumpuser_component_schedule(NULL);
-		VIF_DELIVERPKT(viu->viu_virtifsc, &iov, 1);
-		rumpuser_component_unschedule();
+		thispacket = malloc(UDP_PKT_TOTLEN);
+		if (thispacket == NULL) {
+			fprintf(stderr, "ALLOC PACKET FAIL!\n");
+			sleep(1);
+			continue;
+		}
+		/* zerocopy, said the tie fighter: l-o-l */
+		memcpy(thispacket, pktmem, UDP_PKT_TOTLEN);
+		nextpacket(thispacket);
 
-		nextpacket(pktmem);
+		vifmext.mext_data = thispacket;
+		vifmext.mext_dlen = UDP_PKT_TOTLEN;
+		vifmext.mext_arg = NULL;
+
+		rumpuser_component_schedule(NULL);
+		if (VIF_MBUF_EXTALLOC(&vifmext, 1, &m) != 0) {
+			rumpuser_component_unschedule();
+			free(thispacket);
+			usleep(1000); /* XXX */
+			continue;
+		}
+
+		VIF_DELIVERPKT(viu->viu_virtifsc, m);
+		rumpuser_component_unschedule();
 	}
 
 	pthread_mutex_lock(&viu->viu_mtx);
@@ -234,7 +259,9 @@ pktgenif_makegenerator(int devnum, cpu_set_t *cpuset)
 	if (!viu)
 		return ENOENT;
 
+#if 0
 	assert(cpuset == NULL); /* enotyet */
+#endif
 	pthread_create(&pt, NULL, pktgen_generator, viu);
 
 	return 0;
