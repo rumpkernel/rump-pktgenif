@@ -76,7 +76,7 @@ virtif_create(struct ifnet *ifp)
 	uint8_t enaddr[ETHER_ADDR_LEN] = { 0xb2, 0x0a, 0x00, 0x0b, 0x0e, 0x01 };
 	char enaddrstr[3*ETHER_ADDR_LEN];
 	struct virtif_sc *sc = ifp->if_softc;
-	int error;
+	int error, caps;
 
 	if (sc->sc_viu)
 		panic("%s: already created", ifp->if_xname);
@@ -84,11 +84,15 @@ virtif_create(struct ifnet *ifp)
 	enaddr[2] = cprng_fast32() & 0xff;
 	enaddr[5] = sc->sc_num & 0xff;
 
+	caps = 0;
 	if ((error = VIFHYPER_CREATE(sc->sc_linkstr,
-	    sc, enaddr, &sc->sc_viu)) != 0) {
+	    sc, enaddr, &caps, &sc->sc_viu)) != 0) {
 		printf("VIFHYPER_CREATE failed: %d\n", error);
 		return error;
 	}
+	if (caps & ~IFCAP_MASK)
+		panic("virtif: invalid capabilities: 0x%x\n", caps);
+	ifp->if_capabilities = caps;
 
 	ether_ifattach(ifp, enaddr);
 	ether_snprintf(enaddrstr, sizeof(enaddrstr), enaddr);
@@ -290,8 +294,9 @@ virtif_start(struct ifnet *ifp)
 		}
 		bpf_mtap(ifp, m);
 
-		VIFHYPER_SENDMBUF(sc->sc_viu,
-		    m, m->m_pkthdr.len, m->m_data, m->m_len);
+		VIFHYPER_SENDMBUF(sc->sc_viu, m, m->m_pkthdr.len,
+		    m->m_pkthdr.csum_flags, m->m_pkthdr.csum_data,
+		    m->m_data, m->m_len);
 	}
 	ifp->if_flags &= ~IFF_OACTIVE;
 }

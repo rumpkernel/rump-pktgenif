@@ -43,6 +43,7 @@
 
 #include "if_virt.h"
 #include "virtif_user.h"
+#include "virtif_macros.h"
 
 #include "pktgenif.h"
 #include "pkt_iphdr.h"
@@ -74,7 +75,7 @@ static struct virtif_user *viutab[IF_MAX];
 
 int
 VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
-	struct virtif_user **viup)
+	int *caps, struct virtif_user **viup)
 {
 	struct virtif_user *viu;
 	int devnum = atoi(devstr);
@@ -93,19 +94,31 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 
 	viutab[devnum] = viu;
 
+	*caps = VIF_IFCAP_CSUM_IPv4_Rx | VIF_IFCAP_CSUM_IPv4_Tx
+	    | VIF_IFCAP_CSUM_TCPv4_Rx | VIF_IFCAP_CSUM_TCPv4_Tx
+	    | VIF_IFCAP_CSUM_UDPv4_Rx | VIF_IFCAP_CSUM_UDPv4_Tx
+	    | VIF_IFCAP_CSUM_TCPv6_Rx | VIF_IFCAP_CSUM_TCPv6_Tx
+	    | VIF_IFCAP_CSUM_UDPv6_Rx | VIF_IFCAP_CSUM_UDPv6_Tx;
+
 	*viup = viu;
 	return 0;
 }
 
 void
-VIFHYPER_SENDMBUF(struct virtif_user *viu, struct mbuf *m0, int pktlen,
-	void *data, int dlen)
+VIFHYPER_SENDMBUF(struct virtif_user *viu, struct mbuf *m0,
+	int pktlen, int csum_flags, uint32_t csum_data, void *data, int dlen)
 {
 	struct mbuf *m;
 
 	/* XXX: not locked/atomic */
 	viu->viu_sinkcnt++;
 	viu->viu_sinkbytes += pktlen;
+
+#if 0
+	printf("sending mbuf at %p (m0 data: %p, dlen: %d)\n", m0, data, dlen);
+	printf("checksum flags: 0x%x, checksum data: 0x%x\n",
+	    csum_flags, csum_data);
+#endif
 
 	/* walk through the chain "just because" */
 	for (m = m0; m; ) {

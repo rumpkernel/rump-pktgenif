@@ -36,13 +36,13 @@ struct vif_mextdata {
 
 #define VIFHYPER_REVISION 20140318
 
-int 	VIFHYPER_CREATE(const char *, struct virtif_sc *, uint8_t *,
+int 	VIFHYPER_CREATE(const char *, struct virtif_sc *, uint8_t *, int *,
 			struct virtif_user **);
 int	VIFHYPER_DYING(struct virtif_user *);
 void	VIFHYPER_DESTROY(struct virtif_user *);
 
-void	VIFHYPER_SENDMBUF(struct virtif_user *,
-			  struct mbuf *, int, void *, int);
+void	VIFHYPER_SENDMBUF(struct virtif_user *, struct mbuf *,
+			  int, int, uint32_t, void *, int);
 
 void	VIFHYPER_MBUF_FREECB(void *, size_t, void *);
 
