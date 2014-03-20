@@ -17,11 +17,13 @@ CPPFLAGS+=		 -DVIRTIF_BASE=${VIRTIF} -I${VIRTIFDIR}
 RUMPCOMP_USER_CPPFLAGS+= -DVIRTIF_BASE=${VIRTIF} -I${VIRTIFDIR}
 
 virtif_macros.h: ${RUMPTOP}/../sys/mbuf.h ${RUMPTOP}/../net/if.h
-	sed -n '/^#define[ 	]*M_CSUM/			\
-	    {:l;/\\$$/{N;b l;};s/M_CSUM/VIF_&/;s,/\*.*,,;p;};	\
-		/^#define[ 	]*IFCAP_/			\
-	    {:m;/\\$$/{N;b m;};s/IFCAP_/VIF_&/;s,/\*.*,,;p;}'	\
-		${.ALLSRC} > ${.TARGET}
+	echo '/* AUTOMATICALLY GENERATED.  DO NOT ed IT (or vi) */' > ${.TARGET}
+	${TOOL_SED} -n							\
+	    -e 'H;/\\$$/d;x;s/\n//;'					\
+	    -e '/define.*M_CSUM_/{s/M_CSUM_/VIF_&/;s,/\*.*,,;p;};'	\
+	    -e '/define.*IFCAP_/{s/IFCAP_/VIF_&/;s,/\*.*,,;p;};'	\
+	    -e 'x;s/.*//;x;'						\
+	    ${.ALLSRC} >> ${.TARGET}
 
 DPSRCS+=	virtif_macros.h
 CLEANFILES+=	virtif_macros.h
