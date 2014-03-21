@@ -1,8 +1,8 @@
 #!/bin/sh
 
 #
-# Very very very simple config.sh.  It works with the "current"
-# rumprun, not yet guaranteed to be stable.
+# Configure testtool network stack with rumprun.
+#
 
 # edit me!
 RUMPRUNDIR=/home/pooka/src/rumprun
