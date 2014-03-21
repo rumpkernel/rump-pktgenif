@@ -8,7 +8,7 @@
 RUMPRUNDIR=/home/pooka/src/rumprun
 
 export RUMP_SERVER=${1}
-export PATH="${RUMPRUNDIR}/bin:${PATH}"
+export PATH="${RUMPRUNDIR}/bin"
 
 ifconfig pg0 create
 ifconfig pg0 inet 1.2.3.4
