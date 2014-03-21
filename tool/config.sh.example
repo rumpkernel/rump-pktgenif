@@ -7,14 +7,13 @@
 # edit me!
 RUMPRUNDIR=/home/pooka/src/rumprun
 
-cd ${RUMPRUNDIR}
 export RUMP_SERVER=unix:///tmp/pktgen
-export LD_LIBRARY_PATH=.:rumpdyn/lib
-./rumpremote ifconfig pg0 create
-./rumpremote ifconfig pg0 inet 1.2.3.4
-./rumpremote ifconfig pg0 ip4csum
-./rumpremote ifconfig pg0 udp4csum
-./rumpremote ifconfig pg0 mtu 9000
-./rumpremote ifconfig pg0 
-./rumpremote sysctl -w net.inet.udp.sendspace=200000
-./rumpremote arp -s 1.2.3.1 12:23:34:45:56
+export PATH="${RUMPRUNDIR}/bin:${PATH}"
+ifconfig pg0 create
+ifconfig pg0 inet 1.2.3.4
+ifconfig pg0 ip4csum
+ifconfig pg0 udp4csum
+ifconfig pg0 mtu 9000
+ifconfig pg0 
+sysctl -w net.inet.udp.sendspace=200000
+arp -s 1.2.3.1 12:23:34:45:56
