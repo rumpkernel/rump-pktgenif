@@ -76,7 +76,8 @@ virtif_create(struct ifnet *ifp)
 	uint8_t enaddr[ETHER_ADDR_LEN] = { 0xb2, 0x0a, 0x00, 0x0b, 0x0e, 0x01 };
 	char enaddrstr[3*ETHER_ADDR_LEN];
 	struct virtif_sc *sc = ifp->if_softc;
-	int error, caps;
+	int ifcaps, ethercaps;
+	int error;
 
 	if (sc->sc_viu)
 		panic("%s: already created", ifp->if_xname);
@@ -84,15 +85,22 @@ virtif_create(struct ifnet *ifp)
 	enaddr[2] = cprng_fast32() & 0xff;
 	enaddr[5] = sc->sc_num & 0xff;
 
-	caps = 0;
 	if ((error = VIFHYPER_CREATE(sc->sc_linkstr,
-	    sc, enaddr, &caps, &sc->sc_viu)) != 0) {
+	    sc, enaddr, &sc->sc_viu)) != 0) {
 		printf("VIFHYPER_CREATE failed: %d\n", error);
 		return error;
 	}
-	if (caps & ~IFCAP_MASK)
-		panic("virtif: invalid capabilities: 0x%x\n", caps);
-	ifp->if_capabilities = caps;
+
+	ifcaps = ethercaps = 0;
+	VIFHYPER_GETCAPS(sc->sc_viu, &ifcaps, &ethercaps);
+	if (ifcaps & ~IFCAP_MASK)
+		panic("virtif: invalid ifcaps: 0x%x\n", ifcaps);
+#ifdef notyet
+	if (ethercaps & ~ETHERCAP_MASK)
+		panic("virtif: invalid ethercaps: 0x%x\n", ethercaps);
+#endif
+	ifp->if_capabilities = ifcaps;
+	sc->sc_ec.ec_capabilities = ethercaps;
 
 	ether_ifattach(ifp, enaddr);
 	ether_snprintf(enaddrstr, sizeof(enaddrstr), enaddr);

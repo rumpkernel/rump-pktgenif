@@ -75,7 +75,7 @@ static struct virtif_user *viutab[IF_MAX];
 
 int
 VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
-	int *caps, struct virtif_user **viup)
+	struct virtif_user **viup)
 {
 	struct virtif_user *viu;
 	int devnum = atoi(devstr);
@@ -94,14 +94,22 @@ VIFHYPER_CREATE(const char *devstr, struct virtif_sc *vif_sc, uint8_t *enaddr,
 
 	viutab[devnum] = viu;
 
-	*caps = VIF_IFCAP_CSUM_IPv4_Rx | VIF_IFCAP_CSUM_IPv4_Tx
+	*viup = viu;
+	return 0;
+}
+
+void
+VIFHYPER_GETCAPS(struct virtif_user *viu, int *ifcaps, int *ethercaps)
+{
+
+
+	*ifcaps = VIF_IFCAP_CSUM_IPv4_Rx | VIF_IFCAP_CSUM_IPv4_Tx
 	    | VIF_IFCAP_CSUM_TCPv4_Rx | VIF_IFCAP_CSUM_TCPv4_Tx
 	    | VIF_IFCAP_CSUM_UDPv4_Rx | VIF_IFCAP_CSUM_UDPv4_Tx
 	    | VIF_IFCAP_CSUM_TCPv6_Rx | VIF_IFCAP_CSUM_TCPv6_Tx
 	    | VIF_IFCAP_CSUM_UDPv6_Rx | VIF_IFCAP_CSUM_UDPv6_Tx;
 
-	*viup = viu;
-	return 0;
+	*ethercaps = VIF_ETHERCAP_JUMBO_MTU;
 }
 
 void

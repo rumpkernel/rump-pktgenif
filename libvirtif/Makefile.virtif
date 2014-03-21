@@ -16,14 +16,18 @@ VIRTIFDIR:=	${.PARSEDIR}
 CPPFLAGS+=		 -DVIRTIF_BASE=${VIRTIF} -I${VIRTIFDIR}
 RUMPCOMP_USER_CPPFLAGS+= -DVIRTIF_BASE=${VIRTIF} -I${VIRTIFDIR}
 
-virtif_macros.h: ${RUMPTOP}/../sys/mbuf.h ${RUMPTOP}/../net/if.h
+VIF_MACRO_SRCS=	${RUMPTOP}/../sys/mbuf.h
+VIF_MACRO_SRCS+=${RUMPTOP}/../net/if.h
+VIF_MACRO_SRCS+=${RUMPTOP}/../net/if_ether.h
+virtif_macros.h: ${VIF_MACRO_SRCS} ${VIRTIFDIR}/Makefile.virtif
 	echo '/* AUTOMATICALLY GENERATED.  DO NOT ed IT (or vi) */' > ${.TARGET}
 	${TOOL_SED} -n							\
 	    -e 'H;/\\$$/d;x;s/\n//;'					\
 	    -e '/define.*M_CSUM_/{s/M_CSUM_/VIF_&/;s,/\*.*,,;p;};'	\
 	    -e '/define.*IFCAP_/{s/IFCAP_/VIF_&/;s,/\*.*,,;p;};'	\
+	    -e '/define.*ETHERCAP_/{s/ETHERCAP_/VIF_&/;s,/\*.*,,;p;};'	\
 	    -e 'x;s/.*//;x;'						\
-	    ${.ALLSRC} >> ${.TARGET}
+	    ${VIF_MACRO_SRCS} >> ${.TARGET}
 
 DPSRCS+=	virtif_macros.h
 CLEANFILES+=	virtif_macros.h

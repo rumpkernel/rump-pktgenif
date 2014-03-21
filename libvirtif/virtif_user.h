@@ -34,10 +34,11 @@ struct vif_mextdata {
 	void	*mext_arg;
 };
 
-#define VIFHYPER_REVISION 20140318
+#define VIFHYPER_REVISION 20140320
 
-int 	VIFHYPER_CREATE(const char *, struct virtif_sc *, uint8_t *, int *,
+int 	VIFHYPER_CREATE(const char *, struct virtif_sc *, uint8_t *,
 			struct virtif_user **);
+void	VIFHYPER_GETCAPS(struct virtif_user *, int *, int *);
 int	VIFHYPER_DYING(struct virtif_user *);
 void	VIFHYPER_DESTROY(struct virtif_user *);
 
