@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#define _GNU_SOURCE
+
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/uio.h>
@@ -285,6 +287,7 @@ pktgenif_makegenerator(int devnum, cpu_set_t *cpuset)
 	assert(cpuset == NULL); /* enotyet */
 #endif
 	pthread_create(&pt, NULL, pktgen_generator, viu);
+	pthread_setname_np(pt, "pktgen");
 
 	return 0;
 }
