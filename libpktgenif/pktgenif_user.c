@@ -53,6 +53,8 @@
 #define IF_MAX 32
 #define IF_NOT_MAX jokejokelaughlaugh
 
+#define BURSTPKTS 10
+
 struct virtif_user {
 	struct virtif_sc *viu_virtifsc;
 	uint8_t viu_enaddr[PKTGEN_ETHER_ADDR_LEN];
@@ -224,6 +226,7 @@ pktgen_generator(void *arg)
 	struct virtif_user *viu = arg;
 	uint64_t sourced = 0;
 	void *pktmem, *thispacket;
+	int burst;
 
 	pktmem = primepacket(viu);
 	rumpuser_component_kthread();
@@ -236,7 +239,17 @@ pktgen_generator(void *arg)
 	pthread_mutex_unlock(&viu->viu_mtx);
 
 	/* check unlocked, should see it soon enough anyway */
-	for (sourced = 0; viu->viu_shouldrun; sourced++) {
+	rumpuser_component_schedule(NULL);
+	for (sourced = 0, burst = 0; viu->viu_shouldrun; sourced++) {
+		if (burst == BURSTPKTS) {
+			rumpuser_component_unschedule();
+			sched_yield();
+			burst = 0;
+			rumpuser_component_schedule(NULL);
+			continue;
+		}
+		burst++;
+
 		thispacket = malloc(viu->viu_sourcelen);
 		if (thispacket == NULL) {
 			fprintf(stderr, "ALLOC PACKET FAIL!\n");
@@ -251,20 +264,21 @@ pktgen_generator(void *arg)
 		vifmext.mext_dlen = viu->viu_sourcelen;
 		vifmext.mext_arg = NULL;
 
-		rumpuser_component_schedule(NULL);
 		if (VIF_MBUF_EXTALLOC(&vifmext, 1, &m) != 0) {
 			rumpuser_component_unschedule();
 			free(thispacket);
 			usleep(1000); /* XXX */
+			burst = 0;
+			rumpuser_component_schedule(NULL);
 			continue;
 		}
 
 		/* should this simply be merged with MBUF_EXTALLOC()? */
 		VIF_DELIVERMBUF(viu->viu_virtifsc, m);
-		rumpuser_component_unschedule();
 
 		viu->viu_sourcebytes += viu->viu_sourcelen;
 	}
+	rumpuser_component_unschedule();
 
 	pthread_mutex_lock(&viu->viu_mtx);
 	if (--viu->viu_running == 0)
