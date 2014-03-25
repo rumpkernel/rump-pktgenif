@@ -187,7 +187,7 @@ primepacket(struct virtif_user *viu)
 
 	udp.uh_sport = htons(12345);
 	udp.uh_dport = htons(54321);
-	udp.uh_ulen = htons(UDP_PKT_TOTLEN - ntohs(ip.ip_len));
+	udp.uh_ulen = htons(UDP_PKT_TOTLEN - udpoff);
 	/* cheating: not checksummed */
 
 	memcpy((uint8_t *)mem + ehoff, &eh, sizeof(eh));
