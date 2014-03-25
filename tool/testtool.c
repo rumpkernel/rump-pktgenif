@@ -228,7 +228,7 @@ main(int argc, char *argv[])
 		gettimeofday(&tv_e, NULL);
 		pktgenif_getresults(0, NULL, NULL, &sinkcnt, &sinkbytes);
 	} else {
-		if (pktgenif_makegenerator(0, NULL) != 0)
+		if (pktgenif_makegenerator(0, pktsize+40, NULL) != 0)
 			errx(1, "failed to make generator");
 
 		gettimeofday(&tv_s, NULL);

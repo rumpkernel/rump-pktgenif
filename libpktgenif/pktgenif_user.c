@@ -53,8 +53,6 @@
 #define IF_MAX 32
 #define IF_NOT_MAX jokejokelaughlaugh
 
-#define UDP_PKT_TOTLEN 64
-
 struct virtif_user {
 	struct virtif_sc *viu_virtifsc;
 	uint8_t viu_enaddr[PKTGEN_ETHER_ADDR_LEN];
@@ -64,6 +62,8 @@ struct virtif_user {
 
 	int viu_shouldrun;
 	int viu_running;
+
+	int viu_sourcelen;
 
 	/* hot variables (accessed by same thread) */
 	uint64_t viu_sourcecnt;
@@ -161,7 +161,7 @@ primepacket(struct virtif_user *viu)
 	ipoff = ehoff + sizeof(struct pktgen_ether_header);
 	udpoff = ipoff + sizeof(struct pktgen_ip);
 
-	mem = malloc(UDP_PKT_TOTLEN);
+	mem = malloc(viu->viu_sourcelen);
 	if (!mem)
 		abort();
 
@@ -176,7 +176,7 @@ primepacket(struct virtif_user *viu)
 
 	ip.ip_hl = sizeof(ip)>>2;
 	ip.ip_v = 4;
-	ip.ip_len = htons(UDP_PKT_TOTLEN - sizeof(struct pktgen_ether_header));
+	ip.ip_len = htons(viu->viu_sourcelen - ipoff);
 	ip.ip_id = 0;
 	ip.ip_ttl = 5;
 	ip.ip_p = PKTGEN_IPPROTO_UDP;
@@ -186,7 +186,7 @@ primepacket(struct virtif_user *viu)
 
 	udp.uh_sport = htons(12345);
 	udp.uh_dport = htons(54321);
-	udp.uh_ulen = htons(UDP_PKT_TOTLEN - udpoff);
+	udp.uh_ulen = htons(viu->viu_sourcelen - udpoff);
 	/* cheating: not checksummed */
 
 	memcpy((uint8_t *)mem + ehoff, &eh, sizeof(eh));
@@ -237,18 +237,18 @@ pktgen_generator(void *arg)
 
 	/* check unlocked, should see it soon enough anyway */
 	for (sourced = 0; viu->viu_shouldrun; sourced++) {
-		thispacket = malloc(UDP_PKT_TOTLEN);
+		thispacket = malloc(viu->viu_sourcelen);
 		if (thispacket == NULL) {
 			fprintf(stderr, "ALLOC PACKET FAIL!\n");
 			sleep(1);
 			continue;
 		}
 		/* zerocopy, said the tie fighter: l-o-l */
-		memcpy(thispacket, pktmem, UDP_PKT_TOTLEN);
+		memcpy(thispacket, pktmem, viu->viu_sourcelen);
 		nextpacket(thispacket);
 
 		vifmext.mext_data = thispacket;
-		vifmext.mext_dlen = UDP_PKT_TOTLEN;
+		vifmext.mext_dlen = viu->viu_sourcelen;
 		vifmext.mext_arg = NULL;
 
 		rumpuser_component_schedule(NULL);
@@ -263,7 +263,7 @@ pktgen_generator(void *arg)
 		VIF_DELIVERMBUF(viu->viu_virtifsc, m);
 		rumpuser_component_unschedule();
 
-		viu->viu_sourcebytes += UDP_PKT_TOTLEN;
+		viu->viu_sourcebytes += viu->viu_sourcelen;
 	}
 
 	pthread_mutex_lock(&viu->viu_mtx);
@@ -276,7 +276,7 @@ pktgen_generator(void *arg)
 }
 
 int
-pktgenif_makegenerator(int devnum, cpu_set_t *cpuset)
+pktgenif_makegenerator(int devnum, int pktlen, cpu_set_t *cpuset)
 {
 	struct virtif_user *viu = viutab[devnum];
 	pthread_t pt;
@@ -287,6 +287,7 @@ pktgenif_makegenerator(int devnum, cpu_set_t *cpuset)
 #if 0
 	assert(cpuset == NULL); /* enotyet */
 #endif
+	viu->viu_sourcelen = pktlen;
 	pthread_create(&pt, NULL, pktgen_generator, viu);
 	pthread_setname_np(pt, "pktgen");
 
