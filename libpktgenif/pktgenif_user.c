@@ -104,7 +104,6 @@ void
 VIFHYPER_GETCAPS(struct virtif_user *viu, int *ifcaps, int *ethercaps)
 {
 
-
 	*ifcaps = VIF_IFCAP_CSUM_IPv4_Rx | VIF_IFCAP_CSUM_IPv4_Tx
 	    | VIF_IFCAP_CSUM_TCPv4_Rx | VIF_IFCAP_CSUM_TCPv4_Tx
 	    | VIF_IFCAP_CSUM_UDPv4_Rx | VIF_IFCAP_CSUM_UDPv4_Tx
