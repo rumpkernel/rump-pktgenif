@@ -100,14 +100,16 @@ sendpackets(uint64_t pktcnt, size_t dlen)
 
 #define PKT_MAXLEN (1<<16)
 static uint64_t
-receivepackets(uint64_t pktcnt)
+receivepackets(uint64_t pktcnt, uint64_t *datacnt)
 {
 	void *mem = malloc(PKT_MAXLEN);
 	struct sockaddr_in sin;
 	socklen_t slen = sizeof(sin);
-	uint64_t rcvd;
+	uint64_t rcvd, rcvd_data;
+	ssize_t nn;
 	int s;
 
+	*datacnt = 0;
 	s = rump_sys_socket(RUMP_PF_INET, RUMP_SOCK_DGRAM, 0);
 	if (s == -1)
 		return 0;
@@ -119,11 +121,14 @@ receivepackets(uint64_t pktcnt)
 	if (rump_sys_bind(s, (struct sockaddr *)&sin, sizeof(sin)) == -1)
 		return 0;
 
-	for (rcvd = 0; rcvd < pktcnt && !ehit; rcvd++) {
-		if (rump_sys_recvfrom(s, mem, PKT_MAXLEN, 0,
-		    (struct sockaddr *)&sin, &slen) == -1)
+	for (rcvd = 0, rcvd_data = 0; rcvd < pktcnt && !ehit; rcvd++) {
+		if ((nn = rump_sys_recvfrom(s, mem, PKT_MAXLEN, 0,
+		    (struct sockaddr *)&sin, &slen)) <= 0)
 			break;
+		rcvd_data += nn;
 	}
+
+	*datacnt = rcvd_data;
 	return rcvd;
 }
 
@@ -143,8 +148,8 @@ main(int argc, char *argv[])
 {
 	struct timeval tv_s, tv_e, tv;
 	struct sigaction sa;
-	uint64_t ifsinkcnt, ifsourcecnt, ifrelevantcnt;
-	uint64_t ifsinkbytes, ifsourcebytes, ifrelevantbytes;
+	uint64_t sourcecnt, sourcebytes;
+	uint64_t sinkcnt, sinkbytes;
 	char *rcscript = NULL;
 	double ptime;
 	uint64_t pktdone;
@@ -218,39 +223,40 @@ main(int argc, char *argv[])
 	printf("starting ...\n");
 	if (action == ACTION_SEND) {
 		gettimeofday(&tv_s, NULL);
-		pktdone = sendpackets(pktcnt, pktsize);
+		sourcecnt = sendpackets(pktcnt, pktsize);
+		sourcebytes = pktcnt * pktsize;
 		gettimeofday(&tv_e, NULL);
-		pktgenif_getresults(0, NULL, NULL, &ifsinkcnt, &ifsinkbytes);
-		ifrelevantcnt = ifsinkcnt;
-		ifrelevantbytes = ifsinkbytes;
+		pktgenif_getresults(0, NULL, NULL, &sinkcnt, &sinkbytes);
 	} else {
 		if (pktgenif_makegenerator(0, NULL) != 0)
 			errx(1, "failed to make generator");
 
 		gettimeofday(&tv_s, NULL);
 		pktgenif_startgenerator(0);
-		pktdone = receivepackets(pktcnt);
+		sinkcnt = receivepackets(pktcnt, &sinkbytes);
 		gettimeofday(&tv_e, NULL);
-		pktgenif_getresults(0, &ifsourcecnt, &ifsourcebytes,
+		pktgenif_getresults(0, &sourcecnt, &sourcebytes,
 		    NULL, NULL);
-		ifrelevantcnt = ifsourcecnt;
-		ifrelevantbytes = ifsourcebytes;
 	}
 
-	printf("processed %" PRIu64 " packets\n", pktdone);
 	timersub(&tv_e, &tv_s, &tv);
 	ptime = tv.tv_sec + tv.tv_usec/1000000.0;
 
-	printf("total elapsed time: %f seconds\n", ptime);
-	printf("packet per second: %f\n\n", pktdone / ptime);
-	printf("interface count: %lu\n", ifrelevantcnt);
-	printf("ratio of I/O's by tool/packets by if: %3f%%\n",
-	    100*(pktdone / (ifrelevantcnt+.0)));
+	printf("\ntotal elapsed time: %f seconds\n\n", ptime);
+	printf("source packets per second: %f\n", sourcecnt / ptime);
+	printf("sink packets per second: %f\n", sinkcnt / ptime);
+	printf("source count: %lu\n", sourcecnt);
+	printf("sink count: %lu\n", sinkcnt);
+	printf("ratio of packets by source/packets by sink (w/ frags): %3f%%\n",
+	    100*(sourcecnt / (sinkcnt+.0)));
 
-	printf("interface byte count (includes network headers): %" PRIu64 "\n",
-	    ifrelevantbytes);
-	printf("ratio of bytes by tool/bytes by if: %3f%%\n",
-	    100*((pktdone*pktsize) / (ifrelevantbytes+.0)));
-	printf("gigabits per second (on interface): %f\n\n",
-	    (8 * ifrelevantbytes / ptime)/1000000000.0);
+	printf("\n");
+
+	printf("sink byte count: %" PRIu64 "\n", sinkbytes);
+	printf("ratio of bytes by source/bytes by sink: %3f%%\n",
+	    100*((sourcebytes) / (sinkbytes+.0)));
+	printf("gigabits per second at source: %f\n",
+	    (8 * sourcebytes / ptime)/1000000000.0);
+	printf("gigabits per second at sink: %f\n",
+	    (8 * sinkbytes / ptime)/1000000000.0);
 }

@@ -263,6 +263,8 @@ pktgen_generator(void *arg)
 		/* should this simply be merged with MBUF_EXTALLOC()? */
 		VIF_DELIVERMBUF(viu->viu_virtifsc, m);
 		rumpuser_component_unschedule();
+
+		viu->viu_sourcebytes += UDP_PKT_TOTLEN;
 	}
 
 	pthread_mutex_lock(&viu->viu_mtx);
