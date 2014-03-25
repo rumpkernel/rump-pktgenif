@@ -53,8 +53,6 @@
 #define IF_MAX 32
 #define IF_NOT_MAX jokejokelaughlaugh
 
-#define BURSTPKTS 10
-
 struct virtif_user {
 	struct virtif_sc *viu_virtifsc;
 	uint8_t viu_enaddr[PKTGEN_ETHER_ADDR_LEN];
@@ -66,6 +64,7 @@ struct virtif_user {
 	int viu_running;
 
 	int viu_sourcelen;
+	int viu_burst;
 
 	/* hot variables (accessed by same thread) */
 	uint64_t viu_sourcecnt;
@@ -226,6 +225,7 @@ pktgen_generator(void *arg)
 	struct virtif_user *viu = arg;
 	uint64_t sourced = 0;
 	void *pktmem, *thispacket;
+	const int ifburst = viu->viu_burst;
 	int burst;
 
 	pktmem = primepacket(viu);
@@ -241,7 +241,7 @@ pktgen_generator(void *arg)
 	/* check unlocked, should see it soon enough anyway */
 	rumpuser_component_schedule(NULL);
 	for (sourced = 0, burst = 0; viu->viu_shouldrun; sourced++) {
-		if (burst == BURSTPKTS) {
+		if (burst == ifburst) {
 			rumpuser_component_unschedule();
 			sched_yield();
 			burst = 0;
@@ -290,7 +290,7 @@ pktgen_generator(void *arg)
 }
 
 int
-pktgenif_makegenerator(int devnum, int pktlen, cpu_set_t *cpuset)
+pktgenif_makegenerator(int devnum, int pktlen, int burst, cpu_set_t *cpuset)
 {
 	struct virtif_user *viu = viutab[devnum];
 	pthread_t pt;
@@ -301,7 +301,10 @@ pktgenif_makegenerator(int devnum, int pktlen, cpu_set_t *cpuset)
 #if 0
 	assert(cpuset == NULL); /* enotyet */
 #endif
+
 	viu->viu_sourcelen = pktlen;
+	viu->viu_burst = burst;
+
 	pthread_create(&pt, NULL, pktgen_generator, viu);
 	pthread_setname_np(pt, "pktgen");
 

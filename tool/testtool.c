@@ -154,12 +154,16 @@ main(int argc, char *argv[])
 	double ptime;
 	uint64_t pktdone;
 	int ch, action;
+	int burst = 1;
 
 	uint64_t pktcnt = PKTCNT;
 	int pktsize = PKTSIZE;
 
-	while ((ch = getopt(argc, argv, "c:r:s:")) != -1) {
+	while ((ch = getopt(argc, argv, "b:c:r:s:")) != -1) {
 		switch (ch) {
+		case 'b':
+			burst = atoi(optarg);
+			break;
 		case 'c':
 			pktcnt = strtoull(optarg, NULL, 10);
 			break;
@@ -228,7 +232,7 @@ main(int argc, char *argv[])
 		gettimeofday(&tv_e, NULL);
 		pktgenif_getresults(0, NULL, NULL, &sinkcnt, &sinkbytes);
 	} else {
-		if (pktgenif_makegenerator(0, pktsize+40, NULL) != 0)
+		if (pktgenif_makegenerator(0, pktsize+40, burst, NULL) != 0)
 			errx(1, "failed to make generator");
 
 		gettimeofday(&tv_s, NULL);
