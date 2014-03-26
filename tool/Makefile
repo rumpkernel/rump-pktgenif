@@ -1,4 +1,5 @@
 PROG=	testtool
+SRCS=	testtool.c
 
 LDADD=	-Wl,--whole-archive -lrumpnet_pktgenif -lrumpnet_netinet -lrumpnet_net -lrumpnet -lrump -lrumpuser -Wl,--no-whole-archive
 
@@ -8,5 +9,11 @@ PKTGENIFDIR=${.CURDIR}/../libpktgenif
 
 LDFLAGS+= -L${PKTGENIFDIR} -Wl,-R${PKTGENIFDIR}
 CPPFLAGS+= -I${PKTGENIFDIR}
+
+.include "${.CURDIR}/../Makefile.inc"
+
+.ifdef USE_LTTNG
+LDADD+= -llttng-ust
+.endif
 
 .include <bsd.prog.mk>

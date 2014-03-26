@@ -53,6 +53,13 @@
 
 #include "pktgenif.h"
 
+#ifdef USE_LTTNG
+#include "pktgenif_tracepoint.h"
+#define TESTTOOL_TP(msg) tracepoint(pktgenif,tool,msg)
+#else
+#define TESTTOOL_TP(msg)
+#endif
+
 #define RUMP_SERVURL "unix:///tmp/pktgen"
 #define PKTCNT 100000000
 #define PKTSIZE 22
@@ -91,9 +98,11 @@ sendpackets(uint64_t pktcnt, size_t dlen)
 	sin.sin_addr.s_addr = inet_addr("1.2.3.1");
 
 	for (sent = 0; sent < pktcnt && !ehit; sent++) {
+		TESTTOOL_TP("sendto start");
 		if (rump_sys_sendto(s, sendpayload, dlen, 0,
 		    (struct sockaddr *)&sin, sizeof(sin)) < dlen)
 			break; 
+		TESTTOOL_TP("sendto done");
 	}
 	return sent;
 }
@@ -122,9 +131,11 @@ receivepackets(uint64_t pktcnt, uint64_t *datacnt)
 		return 0;
 
 	for (rcvd = 0, rcvd_data = 0; rcvd < pktcnt && !ehit; rcvd++) {
+		TESTTOOL_TP("recvfrom start");
 		if ((nn = rump_sys_recvfrom(s, mem, PKT_MAXLEN, 0,
 		    (struct sockaddr *)&sin, &slen)) <= 0)
 			break;
+		TESTTOOL_TP("recvfrom done");
 		rcvd_data += nn;
 	}
 

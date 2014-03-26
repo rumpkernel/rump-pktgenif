@@ -53,6 +53,13 @@
 #define IF_MAX 32
 #define IF_NOT_MAX jokejokelaughlaugh
 
+#ifdef USE_LTTNG
+#include "pktgenif_tracepoint.h"
+#define PKTGENIF_TP(message) tracepoint(pktgenif,if,message)
+#else
+#define PKTGENIF_TP(message)
+#endif
+
 struct virtif_user {
 	struct virtif_sc *viu_virtifsc;
 	uint8_t viu_enaddr[PKTGEN_ETHER_ADDR_LEN];
@@ -242,10 +249,12 @@ pktgen_generator(void *arg)
 	rumpuser_component_schedule(NULL);
 	for (sourced = 0, burst = 0; viu->viu_shouldrun; sourced++) {
 		if (burst == ifburst) {
+			PKTGENIF_TP("burst end");
 			rumpuser_component_unschedule();
 			sched_yield();
 			burst = 0;
 			rumpuser_component_schedule(NULL);
+			PKTGENIF_TP("burst restart");
 			continue;
 		}
 		burst++;
@@ -265,6 +274,7 @@ pktgen_generator(void *arg)
 		vifmext.mext_arg = NULL;
 
 		if (VIF_MBUF_EXTALLOC(&vifmext, 1, &m) != 0) {
+			PKTGENIF_TP("mbuf alloc failed");
 			rumpuser_component_unschedule();
 			free(thispacket);
 			usleep(1000); /* XXX */
@@ -274,7 +284,9 @@ pktgen_generator(void *arg)
 		}
 
 		/* should this simply be merged with MBUF_EXTALLOC()? */
+		PKTGENIF_TP("intr start");
 		VIF_DELIVERMBUF(viu->viu_virtifsc, m);
+		PKTGENIF_TP("intr end");
 
 		viu->viu_sourcebytes += viu->viu_sourcelen;
 	}
