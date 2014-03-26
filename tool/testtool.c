@@ -97,7 +97,7 @@ sendpackets(uint64_t pktcnt, size_t dlen)
 	sin.sin_port = htons(55443);
 	sin.sin_addr.s_addr = inet_addr("1.2.3.1");
 
-	for (sent = 0; sent < pktcnt && !ehit; sent++) {
+	for (sent = 0; (pktcnt == 0 || sent < pktcnt) && !ehit; sent++) {
 		TESTTOOL_TP("sendto start");
 		if (rump_sys_sendto(s, sendpayload, dlen, 0,
 		    (struct sockaddr *)&sin, sizeof(sin)) < dlen)
@@ -130,7 +130,9 @@ receivepackets(uint64_t pktcnt, uint64_t *datacnt)
 	if (rump_sys_bind(s, (struct sockaddr *)&sin, sizeof(sin)) == -1)
 		return 0;
 
-	for (rcvd = 0, rcvd_data = 0; rcvd < pktcnt && !ehit; rcvd++) {
+	for (rcvd = 0, rcvd_data = 0;
+	    (pktcnt == 0 || rcvd < pktcnt) && !ehit;
+	    rcvd++) {
 		TESTTOOL_TP("recvfrom start");
 		if ((nn = rump_sys_recvfrom(s, mem, PKT_MAXLEN, 0,
 		    (struct sockaddr *)&sin, &slen)) <= 0)
@@ -235,11 +237,15 @@ main(int argc, char *argv[])
 
 	rump_pub_lwproc_rfork(RUMP_RFFDG);
 
-	printf("starting ...\n");
+	if (pktcnt)
+		printf("starting ... processing %" PRIu64 " packets\n", pktcnt);
+	else
+		printf("starting ... ctrl-c to stop\n");
+
 	if (action == ACTION_SEND) {
 		gettimeofday(&tv_s, NULL);
 		sourcecnt = sendpackets(pktcnt, pktsize);
-		sourcebytes = pktcnt * pktsize;
+		sourcebytes = sourcecnt * pktsize;
 		gettimeofday(&tv_e, NULL);
 		pktgenif_getresults(0, NULL, NULL, &sinkcnt, &sinkbytes);
 	} else {
