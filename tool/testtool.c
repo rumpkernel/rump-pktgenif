@@ -61,7 +61,7 @@
 #endif
 
 #define RUMP_SERVURL "unix:///tmp/pktgen"
-#define PKTCNT 100000000
+#define PKTCNT 0
 #define PKTSIZE 22
 
 static void
