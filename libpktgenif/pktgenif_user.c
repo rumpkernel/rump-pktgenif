@@ -70,15 +70,22 @@ struct virtif_user {
 	int viu_shouldrun;
 	int viu_running;
 
-	int viu_sourcelen;
-	int viu_burst;
-
 	/* hot variables (accessed by same thread) */
 	uint64_t viu_sourcecnt;
 	uint64_t viu_sourcebytes;
 	/* !hot variable */
 	uint64_t viu_sinkcnt;
 	uint64_t viu_sinkbytes;
+};
+
+struct generatorargs {
+	struct virtif_user *garg_viu;
+
+	int garg_pktlen;
+	int garg_burst;
+
+	char garg_src[64];
+	char garg_dst[64];
 };
 
 static struct virtif_user *viutab[IF_MAX];
@@ -157,7 +164,7 @@ VIFHYPER_DYING(struct virtif_user *viu)
 void VIFHYPER_DESTROY(struct virtif_user *viu) { }
 
 static void *
-primepacket(struct virtif_user *viu)
+primepacket(uint8_t *enaddr, int pktlen, const char *src, const char *dst)
 {
 	void *mem;
 	struct pktgen_ether_header eh;
@@ -169,7 +176,7 @@ primepacket(struct virtif_user *viu)
 	ipoff = ehoff + sizeof(struct pktgen_ether_header);
 	udpoff = ipoff + sizeof(struct pktgen_ip);
 
-	mem = malloc(viu->viu_sourcelen);
+	mem = malloc(pktlen);
 	if (!mem)
 		abort();
 
@@ -178,23 +185,23 @@ primepacket(struct virtif_user *viu)
 	memset(&ip, 0, sizeof(ip));
 	memset(&udp, 0, sizeof(udp));
 
-	memcpy(eh.ether_dhost, viu->viu_enaddr, sizeof(eh.ether_dhost));
+	memcpy(eh.ether_dhost, enaddr, sizeof(eh.ether_dhost));
 	eh.ether_shost[0] = 0xb2;
 	eh.ether_type = htons(PKTGEN_ETHERTYPE_IP);
 
 	ip.ip_hl = sizeof(ip)>>2;
 	ip.ip_v = 4;
-	ip.ip_len = htons(viu->viu_sourcelen - ipoff);
+	ip.ip_len = htons(pktlen - ipoff);
 	ip.ip_id = 0;
 	ip.ip_ttl = 5;
 	ip.ip_p = PKTGEN_IPPROTO_UDP;
-	ip.ip_src = inet_addr("1.0.0.2");
-	ip.ip_dst = inet_addr("1.0.0.1");
+	ip.ip_src = inet_addr(src);
+	ip.ip_dst = inet_addr(dst);
 	ip.ip_sum = pktgenif_ip_cksum(&ip, sizeof(ip));
 
 	udp.uh_sport = htons(12345);
 	udp.uh_dport = htons(54321);
-	udp.uh_ulen = htons(viu->viu_sourcelen - udpoff);
+	udp.uh_ulen = htons(pktlen - udpoff);
 	/* cheating: not checksummed */
 
 	memcpy((uint8_t *)mem + ehoff, &eh, sizeof(eh));
@@ -229,13 +236,16 @@ pktgen_generator(void *arg)
 {
 	struct vif_mextdata vifmext;
 	struct mbuf *m;
-	struct virtif_user *viu = arg;
+	struct generatorargs *garg = arg;
+	struct virtif_user *viu = garg->garg_viu;
 	uint64_t sourced = 0;
 	void *pktmem, *thispacket;
-	const int ifburst = viu->viu_burst;
+	const int ifburst = garg->garg_burst;
+	const int pktlen = garg->garg_pktlen;
 	int burst;
 
-	pktmem = primepacket(viu);
+	pktmem = primepacket(viu->viu_enaddr, pktlen,
+	    garg->garg_src, garg->garg_dst);
 	rumpuser_component_kthread();
 
 	pthread_mutex_lock(&viu->viu_mtx);
@@ -259,18 +269,18 @@ pktgen_generator(void *arg)
 		}
 		burst++;
 
-		thispacket = malloc(viu->viu_sourcelen);
+		thispacket = malloc(pktlen);
 		if (thispacket == NULL) {
 			fprintf(stderr, "ALLOC PACKET FAIL!\n");
 			sleep(1);
 			continue;
 		}
 		/* zerocopy, said the tie fighter: l-o-l */
-		memcpy(thispacket, pktmem, viu->viu_sourcelen);
+		memcpy(thispacket, pktmem, pktlen);
 		nextpacket(thispacket);
 
 		vifmext.mext_data = thispacket;
-		vifmext.mext_dlen = viu->viu_sourcelen;
+		vifmext.mext_dlen = pktlen;
 		vifmext.mext_arg = NULL;
 
 		if (VIF_MBUF_EXTALLOC(&vifmext, 1, &m) != 0) {
@@ -288,7 +298,7 @@ pktgen_generator(void *arg)
 		VIF_DELIVERMBUF(viu->viu_virtifsc, m);
 		PKTGENIF_TP("intr end");
 
-		viu->viu_sourcebytes += viu->viu_sourcelen;
+		viu->viu_sourcebytes += pktlen;
 	}
 	rumpuser_component_unschedule();
 
@@ -302,22 +312,30 @@ pktgen_generator(void *arg)
 }
 
 int
-pktgenif_makegenerator(int devnum, int pktlen, int burst, cpu_set_t *cpuset)
+pktgenif_makegenerator(int devnum, const char *srcaddr, const char *dstaddr,
+	int pktlen, int burst, cpu_set_t *cpuset)
 {
 	struct virtif_user *viu = viutab[devnum];
+	struct generatorargs *garg;
 	pthread_t pt;
 
 	if (!viu)
 		return ENOENT;
+	garg = calloc(1, sizeof(*garg));
+	if (garg == NULL)
+		return errno;
 
 #if 0
 	assert(cpuset == NULL); /* enotyet */
 #endif
 
-	viu->viu_sourcelen = pktlen;
-	viu->viu_burst = burst;
+	garg->garg_viu = viu;
+	garg->garg_pktlen = pktlen;
+	garg->garg_burst = burst;
+	strncpy(garg->garg_src, srcaddr, sizeof(garg->garg_src)-1);
+	strncpy(garg->garg_dst, dstaddr, sizeof(garg->garg_dst)-1);
 
-	pthread_create(&pt, NULL, pktgen_generator, viu);
+	pthread_create(&pt, NULL, pktgen_generator, garg);
 	pthread_setname_np(pt, "pktgen");
 
 	return 0;
