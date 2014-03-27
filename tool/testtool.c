@@ -38,6 +38,7 @@
 
 #include <netinet/in.h>
 
+#include <assert.h>
 #include <err.h>
 #include <getopt.h>
 #include <inttypes.h>
@@ -166,6 +167,7 @@ main(int argc, char *argv[])
 	uint64_t sourcecnt, sourcebytes;
 	uint64_t sinkcnt, sinkbytes;
 	char *rcscript = "./config.sh";
+	const char *cmd;
 	double ptime;
 	uint64_t pktdone;
 	int ch, action;
@@ -196,10 +198,13 @@ main(int argc, char *argv[])
 	argv += optind;
 	if (argc != 1)
 		usage();
-	if (strcmp(argv[0], "send") == 0) {
+	cmd = argv[0];
+	if (strcmp(cmd, "send") == 0) {
 		action = ACTION_SEND;
-	} else if (strcmp(argv[0], "recv") == 0) {
+	} else if (strcmp(cmd, "recv") == 0) {
 		action = ACTION_RECV;
+	} else if (strcmp(cmd, "route") == 0) {
+		action = ACTION_ROUTE;
 	} else {
 		usage();
 	}
@@ -217,8 +222,8 @@ main(int argc, char *argv[])
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGTERM, &sa, NULL);
 
-	if (snprintf(rccmd, sizeof(rccmd), "%s %s",
-	    rcscript, RUMP_SERVURL) >= sizeof(rccmd))
+	if (snprintf(rccmd, sizeof(rccmd), "%s %s %s",
+	    rcscript, RUMP_SERVURL, cmd) >= sizeof(rccmd))
 		errx(1, "rc script name too long");
 	if (system(rccmd) != 0)
 		errx(1, "rc script \"%s\" failed", rcscript);
@@ -236,7 +241,8 @@ main(int argc, char *argv[])
 		sourcebytes = sourcecnt * pktsize;
 		gettimeofday(&tv_e, NULL);
 		pktgenif_getresults(0, NULL, NULL, &sinkcnt, &sinkbytes);
-	} else {
+	} else if (action == ACTION_RECV) {
+		/* XXX: pktsize + 40 */
 		if (pktgenif_makegenerator(0, "1.0.0.2", "1.0.0.1",
 		    pktsize+40, burst, NULL) != 0)
 			errx(1, "failed to make generator");
@@ -247,6 +253,28 @@ main(int argc, char *argv[])
 		gettimeofday(&tv_e, NULL);
 		pktgenif_getresults(0, &sourcecnt, &sourcebytes,
 		    NULL, NULL);
+	} else if (action == ACTION_ROUTE) {
+		sigset_t sset;
+
+		/* XXX: pktsize + 40 */
+		if (pktgenif_makegenerator(0, "1.0.0.2", "2.0.0.2",
+		    pktsize+40, burst, NULL) != 0)
+			errx(1, "failed to make generator");
+
+		gettimeofday(&tv_s, NULL);
+		pktgenif_startgenerator(0);
+
+		sigfillset(&sset);
+		sigprocmask(SIG_SETMASK, &sset, NULL);
+		sigemptyset(&sset);
+		while (!ehit)
+			sigsuspend(&sset);
+		sigprocmask(SIG_SETMASK, &sset, NULL);
+		gettimeofday(&tv_e, NULL);
+		pktgenif_getresults(0, &sourcecnt, &sourcebytes, NULL, NULL);
+		pktgenif_getresults(1, NULL, NULL, &sinkcnt, &sinkbytes);
+	} else {
+		assert(0);
 	}
 
 	timersub(&tv_e, &tv_s, &tv);

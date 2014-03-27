@@ -7,14 +7,32 @@
 # edit me!
 RUMPRUNDIR=/home/pooka/src/rumprun
 
+SERVER=${1}
+CMD=${2}
+
 export RUMP_SERVER=${1}
 export PATH="${RUMPRUNDIR}/bin"
 
-ifconfig pg0 create
-ifconfig pg0 inet 1.0.0.1
-ifconfig pg0 ip4csum
-ifconfig pg0 udp4csum
-ifconfig pg0 mtu 9000
-ifconfig pg0 
 sysctl -w net.inet.udp.sendspace=200000
+
+if [ "${CMD}" = "route" ]; then
+	IFACES="0 1"
+else
+	IFACES="0"
+fi
+
+for num in ${IFACES} ; do
+	ifconfig pg${num} create
+	ifconfig pg${num} inet $((${num}+1)).0.0.1
+	ifconfig pg${num} ip4csum
+	ifconfig pg${num} udp4csum
+	ifconfig pg${num} mtu 9000
+	ifconfig pg${num} 
+done
+
 arp -s 1.0.0.2 12:23:34:45:56
+
+if [ ${CMD} = "route" ]; then
+	arp -s 2.0.0.2 12:23:34:45:65
+	route show
+fi
