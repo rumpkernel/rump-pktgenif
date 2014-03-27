@@ -95,7 +95,7 @@ sendpackets(uint64_t pktcnt, size_t dlen)
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = RUMP_AF_INET;
 	sin.sin_port = htons(55443);
-	sin.sin_addr.s_addr = inet_addr("1.2.3.1");
+	sin.sin_addr.s_addr = inet_addr("1.0.0.2");
 
 	for (sent = 0; (pktcnt == 0 || sent < pktcnt) && !ehit; sent++) {
 		TESTTOOL_TP("sendto start");

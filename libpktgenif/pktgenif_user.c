@@ -188,8 +188,8 @@ primepacket(struct virtif_user *viu)
 	ip.ip_id = 0;
 	ip.ip_ttl = 5;
 	ip.ip_p = PKTGEN_IPPROTO_UDP;
-	ip.ip_src = inet_addr("1.2.3.1");
-	ip.ip_dst = inet_addr("1.2.3.4");
+	ip.ip_src = inet_addr("1.0.0.2");
+	ip.ip_dst = inet_addr("1.0.0.1");
 	ip.ip_sum = pktgenif_ip_cksum(&ip, sizeof(ip));
 
 	udp.uh_sport = htons(12345);
