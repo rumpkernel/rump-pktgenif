@@ -14,5 +14,5 @@ Supported modes
 
 The mode is given as the last parameter on the command line.
 
-	* send: application does `sendto()`, sink is interface
-	* recv: interface generates packets, sink is application `recvfrom()`
+* send: application does `sendto()`, sink is interface
+* recv: interface generates packets, sink is application `recvfrom()`
