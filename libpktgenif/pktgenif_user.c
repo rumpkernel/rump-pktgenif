@@ -257,7 +257,7 @@ pktgen_generator(void *arg)
 
 	/* check unlocked, should see it soon enough anyway */
 	rumpuser_component_schedule(NULL);
-	for (sourced = 0, burst = 0; viu->viu_shouldrun; sourced++) {
+	for (sourced = 0, burst = 0; viu->viu_shouldrun;) {
 		if (burst == ifburst) {
 			PKTGENIF_TP("burst end");
 			rumpuser_component_unschedule();
@@ -299,6 +299,7 @@ pktgen_generator(void *arg)
 		PKTGENIF_TP("intr end");
 
 		viu->viu_sourcebytes += pktlen;
+		sourced++;
 	}
 	rumpuser_component_unschedule();
 
