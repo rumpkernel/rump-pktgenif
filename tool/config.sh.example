@@ -32,7 +32,8 @@ done
 
 arp -s 1.0.0.2 12:23:34:45:56
 
-if [ ${CMD} = "route" ]; then
+if [ "${CMD}" = "route" ]; then
+	sysctl -w net.inet.ip.forwarding=1
 	arp -s 2.0.0.2 12:23:34:45:65
 	route show
 fi
