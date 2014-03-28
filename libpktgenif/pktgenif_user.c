@@ -163,6 +163,11 @@ VIFHYPER_DYING(struct virtif_user *viu)
 }
 void VIFHYPER_DESTROY(struct virtif_user *viu) { }
 
+static size_t ehoff = 0;
+static size_t ipoff = sizeof(struct pktgen_ether_header);
+static size_t udpoff = sizeof(struct pktgen_ether_header)
+			+ sizeof(struct pktgen_ip);
+
 static void *
 primepacket(uint8_t *enaddr, int pktlen, const char *src, const char *dst)
 {
@@ -170,11 +175,8 @@ primepacket(uint8_t *enaddr, int pktlen, const char *src, const char *dst)
 	struct pktgen_ether_header eh;
 	struct pktgen_ip ip; 
 	struct pktgen_udphdr udp;
-	size_t ehoff, ipoff, udpoff;
 
-	ehoff = 0;
-	ipoff = ehoff + sizeof(struct pktgen_ether_header);
-	udpoff = ipoff + sizeof(struct pktgen_ip);
+	assert(pktlen > udpoff);
 
 	mem = malloc(pktlen);
 	if (!mem)
@@ -212,14 +214,13 @@ primepacket(uint8_t *enaddr, int pktlen, const char *src, const char *dst)
 }
 
 static void
-nextpacket(void *mem)
+nextpacket(void *mem, uint16_t ipid)
 {
 	struct pktgen_ip *ip;
 
-	/* semi-XXX, but since we're accessing max 16bit fields, we're ok */
-	ip = (struct pktgen_ip *)
-	    ((uint8_t *)mem + sizeof(struct pktgen_ether_header));
-	ip->ip_id = htons(ntohs(ip->ip_id)+1);
+	/* XXX (but only 16bit access, should be ok) */
+	ip = (struct pktgen_ip *)((uint8_t *)mem + ipoff);
+	ip->ip_id = htons(ipid);
 	ip->ip_sum = 0;
 	ip->ip_sum = pktgenif_ip_cksum(ip, sizeof(*ip));
 }
@@ -235,14 +236,19 @@ static void *
 pktgen_generator(void *arg)
 {
 	struct vif_mextdata vifmext;
-	struct mbuf *m;
+	struct mbuf *m, *m0;
 	struct generatorargs *garg = arg;
 	struct virtif_user *viu = garg->garg_viu;
 	uint64_t sourced = 0;
 	void *pktmem, *thispacket;
 	const int ifburst = garg->garg_burst;
 	const int pktlen = garg->garg_pktlen;
-	int burst;
+	void **themem = malloc(ifburst * sizeof(void *));
+	uint16_t ipid = 0;
+	int i;
+
+	if (themem == NULL)
+		abort();
 
 	pktmem = primepacket(viu->viu_enaddr, pktlen,
 	    garg->garg_src, garg->garg_dst);
@@ -255,53 +261,65 @@ pktgen_generator(void *arg)
 	viu->viu_running++;
 	pthread_mutex_unlock(&viu->viu_mtx);
 
+	vifmext.mext_dlen = pktlen;
+	vifmext.mext_arg = NULL;
+
 	/* check unlocked, should see it soon enough anyway */
-	rumpuser_component_schedule(NULL);
-	for (sourced = 0, burst = 0; viu->viu_shouldrun;) {
-		if (burst == ifburst) {
-			PKTGENIF_TP("burst end");
-			rumpuser_component_unschedule();
-			sched_yield();
-			burst = 0;
-			rumpuser_component_schedule(NULL);
-			PKTGENIF_TP("burst restart");
-			continue;
-		}
-		burst++;
+	while (viu->viu_shouldrun) {
+		/* create packets to be sent */
+		for (i = 0; i < ifburst; i++, ipid++) {
+			thispacket = malloc(pktlen);
+			if (thispacket == NULL) {
+				fprintf(stderr, "PACKET ALLOC FAIL!\n");
+				for (i--; i >= 0; i--) {
+					free(themem[i]);
+				}
+				usleep(100000);
+				continue;
+			}
 
-		thispacket = malloc(pktlen);
-		if (thispacket == NULL) {
-			fprintf(stderr, "ALLOC PACKET FAIL!\n");
-			sleep(1);
-			continue;
-		}
-		/* zerocopy, said the tie fighter: l-o-l */
-		memcpy(thispacket, pktmem, pktlen);
-		nextpacket(thispacket);
-
-		vifmext.mext_data = thispacket;
-		vifmext.mext_dlen = pktlen;
-		vifmext.mext_arg = NULL;
-
-		if (VIF_MBUF_EXTALLOC(&vifmext, 1, &m) != 0) {
-			PKTGENIF_TP("mbuf alloc failed");
-			rumpuser_component_unschedule();
-			free(thispacket);
-			usleep(1000); /* XXX */
-			burst = 0;
-			rumpuser_component_schedule(NULL);
-			continue;
+			/* zerocopy, said the tie fighter: l-o-l */
+			memcpy(thispacket, pktmem, pktlen);
+			nextpacket(thispacket, ipid);
+			themem[i] = thispacket;
 		}
 
-		/* should this simply be merged with MBUF_EXTALLOC()? */
-		PKTGENIF_TP("intr start");
-		VIF_DELIVERMBUF(viu->viu_virtifsc, m);
-		PKTGENIF_TP("intr end");
+		PKTGENIF_TP("mextalloc start");
+		rumpuser_component_schedule(NULL);
+		for (i = 0, m = m0 = NULL; i < ifburst; i++) {
+			vifmext.mext_data = themem[i];
 
-		viu->viu_sourcebytes += pktlen;
-		sourced++;
+			if (VIF_MBUF_EXTALLOC(&vifmext, 1, &m) != 0) {
+				PKTGENIF_TP("mbuf alloc failed");
+				rumpuser_component_unschedule();
+				usleep(1000); /* XXX */
+				rumpuser_component_schedule(NULL);
+				break;
+			}
+			themem[i] = NULL;
+			if (m0 == NULL) {
+				assert(i == 0);
+				m0 = m;
+			}
+			viu->viu_sourcebytes += pktlen;
+			sourced++;
+		}
+
+		if (m0) {
+			PKTGENIF_TP("pktdeliver start");
+			VIF_DELIVERMBUF(viu->viu_virtifsc, m0);
+			PKTGENIF_TP("pktdeliver end");
+		}
+
+		/* for mextalloc failures */
+		for (; i < ifburst; i++) {
+			free(themem[i]);
+		}
+
+		rumpuser_component_unschedule();
+		/* give other threads a chance to run */
+		sched_yield();
 	}
-	rumpuser_component_unschedule();
 
 	pthread_mutex_lock(&viu->viu_mtx);
 	if (--viu->viu_running == 0)

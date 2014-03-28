@@ -394,43 +394,52 @@ VIF_MBUF_EXTALLOC(struct vif_mextdata *mextd, size_t n_mextdata,
 		m0 = NULL;
 	} else {
 		m0->m_pkthdr.len = totlen;
+
+		/* previous link on chain? */
+		if (*mp)
+			(*mp)->m_nextpkt = m0;
+		*mp = m0;
 	}
-	*mp = m0;
+
 	return error;
 }
 
 void
-VIF_DELIVERMBUF(struct virtif_sc *sc, struct mbuf *m)
+VIF_DELIVERMBUF(struct virtif_sc *sc, struct mbuf *m0)
 {
 	struct ifnet *ifp = &sc->sc_ec.ec_if;
 	struct ether_header *eth;
+	struct mbuf *m, *n;
 	bool passup;
 
 	if ((ifp->if_flags & IFF_RUNNING) == 0)
 		return;
 
-	eth = mtod(m, struct ether_header *);
-	if (memcmp(eth->ether_dhost, CLLADDR(ifp->if_sadl),
-	    ETHER_ADDR_LEN) == 0) {
-		passup = true;
-	} else if (ETHER_IS_MULTICAST(eth->ether_dhost)) {
-		passup = true;
-	} else if (ifp->if_flags & IFF_PROMISC) {
-		m->m_flags |= M_PROMISC;
-		passup = true;
-	} else {
-		passup = false;
-	}
+	KERNEL_LOCK(1, NULL);
+	for (m = m0; m; m = n) {
+		eth = mtod(m, struct ether_header *);
+		if (memcmp(eth->ether_dhost, CLLADDR(ifp->if_sadl),
+		    ETHER_ADDR_LEN) == 0) {
+			passup = true;
+		} else if (ETHER_IS_MULTICAST(eth->ether_dhost)) {
+			passup = true;
+		} else if (ifp->if_flags & IFF_PROMISC) {
+			m->m_flags |= M_PROMISC;
+			passup = true;
+		} else {
+			passup = false;
+		}
 
-	if (passup) {
-		m->m_pkthdr.rcvif = ifp;
-		KERNEL_LOCK(1, NULL);
-		bpf_mtap(ifp, m);
-		ifp->if_input(ifp, m);
-		KERNEL_UNLOCK_LAST(NULL);
-	} else {
-		m_freem(m);
+		n = m->m_nextpkt;
+		if (passup) {
+			m->m_pkthdr.rcvif = ifp;
+			bpf_mtap(ifp, m);
+			ifp->if_input(ifp, m);
+		} else {
+			m_freem(m);
+		}
 	}
+	KERNEL_UNLOCK_LAST(NULL);
 }
 
 MODULE(MODULE_CLASS_DRIVER, if_virt, NULL);
