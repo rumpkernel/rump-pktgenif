@@ -317,12 +317,14 @@ main(int argc, char *argv[])
 	ptime = tv.tv_sec + tv.tv_usec/1000000.0;
 
 	printf("\ntotal elapsed time: %f seconds\n\n", ptime);
-	printf("source packets per second: %f\n", sourcecnt / ptime);
-	printf("sink packets per second: %f\n", sinkcnt / ptime);
 	printf("source count: %lu\n", sourcecnt);
 	printf("sink count: %lu\n", sinkcnt);
+	printf("source packets per second: %.0f\n", sourcecnt / ptime);
+	printf("sink packets per second: %.0f\n", sinkcnt / ptime);
 	printf("ratio of packets by source/packets by sink (w/ frags): %3f%%\n",
 	    100*(sourcecnt / (sinkcnt+.0)));
+	printf("source pps (normalized): %.0f\n", sourcecnt / (ptime*parallel));
+	printf("sink pps (normalized): %.0f\n", sinkcnt / (ptime*parallel));
 
 	printf("\n");
 
@@ -333,4 +335,8 @@ main(int argc, char *argv[])
 	    (8 * sourcebytes / ptime)/1000000000.0);
 	printf("gigabits per second at sink: %f\n",
 	    (8 * sinkbytes / ptime)/1000000000.0);
+	printf("Gbps source (normalized): %f\n",
+	    (8 * sourcebytes / (parallel*ptime))/1000000000.0);
+	printf("Gbps sink (normalized): %f\n",
+	    (8 * sinkbytes / (parallel*ptime))/1000000000.0);
 }
