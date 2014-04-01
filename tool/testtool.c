@@ -246,7 +246,8 @@ main(int argc, char *argv[])
 	rump_pub_lwproc_rfork(RUMP_RFFDG);
 
 	if (pktcnt)
-		printf("starting ... processing %" PRIu64 " packets\n", pktcnt);
+		printf("starting ... processing %" PRIu64 " packets per unit\n",
+		    pktcnt);
 	else
 		printf("starting ... ctrl-c to stop\n");
 
@@ -320,8 +321,8 @@ main(int argc, char *argv[])
 	ptime = tv.tv_sec + tv.tv_usec/1000000.0;
 
 	printf("\ntotal elapsed time: %f seconds\n\n", ptime);
-	printf("source count: %lu\n", sourcecnt);
-	printf("sink count: %lu\n", sinkcnt);
+	printf("aggregate source count: %lu\n", sourcecnt);
+	printf("aggregate sink count: %lu\n", sinkcnt);
 	printf("source packets per second: %.0f\n", sourcecnt / ptime);
 	printf("sink packets per second: %.0f\n", sinkcnt / ptime);
 	printf("ratio of packets by source/packets by sink (w/ frags): %3f%%\n",
