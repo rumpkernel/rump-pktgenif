@@ -35,6 +35,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -83,6 +84,7 @@ struct generatorargs {
 
 	int garg_pktlen;
 	int garg_burst;
+	uint64_t garg_pkts;
 
 	char garg_src[64];
 	char garg_dst[64];
@@ -243,6 +245,7 @@ pktgen_generator(void *arg)
 	void *pktmem, *thispacket;
 	const int ifburst = garg->garg_burst;
 	const int pktlen = garg->garg_pktlen;
+	const uint64_t pkts = garg->garg_pkts;
 	void **themem = malloc(ifburst * sizeof(void *));
 	uint16_t ipid = 0;
 	int i;
@@ -303,6 +306,10 @@ pktgen_generator(void *arg)
 			}
 			viu->viu_sourcebytes += pktlen;
 			sourced++;
+
+			/* are we done? */
+			if (pkts && sourced >= pkts)
+				viu->viu_shouldrun = 0;
 		}
 
 		if (m0) {
@@ -327,12 +334,16 @@ pktgen_generator(void *arg)
 	viu->viu_sourcecnt += sourced;
 	pthread_mutex_unlock(&viu->viu_mtx);
 
+	/* cheap trick ... */
+	extern pthread_t mainthread;
+	pthread_kill(mainthread, SIGINT);
+
 	return NULL;
 }
 
 int
 pktgenif_makegenerator(int devnum, const char *srcaddr, const char *dstaddr,
-	int pktlen, int burst, cpu_set_t *cpuset)
+	uint64_t pkts, int pktlen, int burst, cpu_set_t *cpuset)
 {
 	struct virtif_user *viu = viutab[devnum];
 	struct generatorargs *garg;
@@ -350,6 +361,7 @@ pktgenif_makegenerator(int devnum, const char *srcaddr, const char *dstaddr,
 #endif
 
 	garg->garg_viu = viu;
+	garg->garg_pkts = pkts;
 	garg->garg_pktlen = pktlen;
 	garg->garg_burst = burst;
 	strncpy(garg->garg_src, srcaddr, sizeof(garg->garg_src)-1);

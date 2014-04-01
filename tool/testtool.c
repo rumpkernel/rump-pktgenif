@@ -74,6 +74,7 @@ myexit(void)
 	rump_sys_reboot(0, 0);
 }
 
+pthread_t mainthread;
 static sig_atomic_t ehit;
 static void
 hand(int sig)
@@ -176,6 +177,8 @@ main(int argc, char *argv[])
 	int burst = 1;
 	int parallel = 1;
 
+	mainthread = pthread_self();
+
 	uint64_t pktcnt = PKTCNT;
 	int pktsize = PKTSIZE;
 
@@ -255,7 +258,7 @@ main(int argc, char *argv[])
 		pktgenif_getresults(0, NULL, NULL, &sinkcnt, &sinkbytes);
 	} else if (action == ACTION_RECV) {
 		/* XXX: pktsize + 40 */
-		if (pktgenif_makegenerator(0, "1.0.0.2", "1.0.0.1",
+		if (pktgenif_makegenerator(0, "1.0.0.2", "1.0.0.1", 0,
 		    pktsize+40, burst, NULL) != 0)
 			errx(1, "failed to make generator");
 
@@ -280,7 +283,7 @@ main(int argc, char *argv[])
 
 			snprintf(srcaddr, sizeof(srcaddr), "%d.0.0.2", 2*i+1);
 			snprintf(dstaddr, sizeof(dstaddr), "%d.0.0.2", 2*i+2);
-			if (pktgenif_makegenerator(i, srcaddr, dstaddr,
+			if (pktgenif_makegenerator(i, srcaddr, dstaddr, pktcnt,
 			    pktsize+40, burst, &cpuset) != 0)
 				warnx("failed to make generator %d", i);
 		}
