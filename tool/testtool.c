@@ -30,6 +30,8 @@
  * Status: works && in the works ...
  */
 
+#define _GNU_SOURCE
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -271,11 +273,15 @@ main(int argc, char *argv[])
 		for (i = 0; i < parallel; i++) {
 			char srcaddr[64];
 			char dstaddr[64];
+			cpu_set_t cpuset;
+
+			CPU_ZERO(&cpuset);
+			CPU_SET(i, &cpuset);
 
 			snprintf(srcaddr, sizeof(srcaddr), "%d.0.0.2", 2*i+1);
 			snprintf(dstaddr, sizeof(dstaddr), "%d.0.0.2", 2*i+2);
 			if (pktgenif_makegenerator(i, srcaddr, dstaddr,
-			    pktsize+40, burst, NULL) != 0)
+			    pktsize+40, burst, &cpuset) != 0)
 				warnx("failed to make generator %d", i);
 		}
 

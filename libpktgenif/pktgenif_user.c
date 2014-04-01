@@ -337,6 +337,7 @@ pktgenif_makegenerator(int devnum, const char *srcaddr, const char *dstaddr,
 	struct virtif_user *viu = viutab[devnum];
 	struct generatorargs *garg;
 	pthread_t pt;
+	int rv;
 
 	if (!viu)
 		return ENOENT;
@@ -356,6 +357,8 @@ pktgenif_makegenerator(int devnum, const char *srcaddr, const char *dstaddr,
 
 	pthread_create(&pt, NULL, pktgen_generator, garg);
 	pthread_setname_np(pt, "pktgen");
+	if ((rv = pthread_setaffinity_np(pt, sizeof(*cpuset), cpuset)) != 0)
+		fprintf(stderr, "setaffinity failed %d\n", rv);
 
 	return 0;
 }
