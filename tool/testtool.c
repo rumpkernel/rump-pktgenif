@@ -308,10 +308,10 @@ main(int argc, char *argv[])
 		for (i = 0; i < parallel; i++) {
 			pktgenif_getresults(0, &cnt, &byt, NULL, NULL);
 			sourcecnt += cnt;
-			sourcebytes = byt;
+			sourcebytes += byt;
 			pktgenif_getresults(1, NULL, NULL, &cnt, &byt);
 			sinkcnt += cnt;
-			sinkbytes = byt;
+			sinkbytes += byt;
 		}
 	} else {
 		assert(0);
