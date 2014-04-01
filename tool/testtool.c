@@ -170,19 +170,23 @@ main(int argc, char *argv[])
 	const char *cmd;
 	double ptime;
 	uint64_t pktdone;
-	int ch, action;
+	int ch, action, i;
 	int burst = 1;
+	int parallel = 1;
 
 	uint64_t pktcnt = PKTCNT;
 	int pktsize = PKTSIZE;
 
-	while ((ch = getopt(argc, argv, "b:c:r:s:")) != -1) {
+	while ((ch = getopt(argc, argv, "b:c:p:r:s:")) != -1) {
 		switch (ch) {
 		case 'b':
 			burst = atoi(optarg);
 			break;
 		case 'c':
 			pktcnt = strtoull(optarg, NULL, 10);
+			break;
+		case 'p':
+			parallel = atoi(optarg);
 			break;
 		case 'r':
 			rcscript = optarg;
@@ -209,6 +213,12 @@ main(int argc, char *argv[])
 		usage();
 	}
 
+	if (parallel < 1 || parallel > 32
+	    || (parallel != 1 && action != ACTION_ROUTE)) {
+		fprintf(stderr, "s'no way parallel-o: %d\n", parallel);
+		exit(1);
+	}
+
 	setenv("RUMP_VERBOSE", "1", 1);
 	rump_init();
 	if (rump_init_server(RUMP_SERVURL) != 0)
@@ -222,8 +232,8 @@ main(int argc, char *argv[])
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGTERM, &sa, NULL);
 
-	if (snprintf(rccmd, sizeof(rccmd), "%s %s %s",
-	    rcscript, RUMP_SERVURL, cmd) >= sizeof(rccmd))
+	if (snprintf(rccmd, sizeof(rccmd), "%s %s %s %d",
+	    rcscript, RUMP_SERVURL, cmd, parallel) >= sizeof(rccmd))
 		errx(1, "rc script name too long");
 	if (system(rccmd) != 0)
 		errx(1, "rc script \"%s\" failed", rcscript);
@@ -254,15 +264,25 @@ main(int argc, char *argv[])
 		pktgenif_getresults(0, &sourcecnt, &sourcebytes,
 		    NULL, NULL);
 	} else if (action == ACTION_ROUTE) {
+		uint64_t cnt, byt;
 		sigset_t sset;
 
 		/* XXX: pktsize + 40 */
-		if (pktgenif_makegenerator(0, "1.0.0.2", "2.0.0.2",
-		    pktsize+40, burst, NULL) != 0)
-			errx(1, "failed to make generator");
+		for (i = 0; i < parallel; i++) {
+			char srcaddr[64];
+			char dstaddr[64];
+
+			snprintf(srcaddr, sizeof(srcaddr), "%d.0.0.2", 2*i+1);
+			snprintf(dstaddr, sizeof(dstaddr), "%d.0.0.2", 2*i+2);
+			if (pktgenif_makegenerator(i, srcaddr, dstaddr,
+			    pktsize+40, burst, NULL) != 0)
+				warnx("failed to make generator %d", i);
+		}
 
 		gettimeofday(&tv_s, NULL);
-		pktgenif_startgenerator(0);
+
+		for (i = 0; i < parallel; i++)
+			pktgenif_startgenerator(i);
 
 		sigfillset(&sset);
 		sigprocmask(SIG_SETMASK, &sset, NULL);
@@ -271,8 +291,18 @@ main(int argc, char *argv[])
 			sigsuspend(&sset);
 		sigprocmask(SIG_SETMASK, &sset, NULL);
 		gettimeofday(&tv_e, NULL);
-		pktgenif_getresults(0, &sourcecnt, &sourcebytes, NULL, NULL);
-		pktgenif_getresults(1, NULL, NULL, &sinkcnt, &sinkbytes);
+
+		sourcecnt = sinkcnt = 0;
+		sourcebytes = sinkbytes = 0;
+
+		for (i = 0; i < parallel; i++) {
+			pktgenif_getresults(0, &cnt, &byt, NULL, NULL);
+			sourcecnt += cnt;
+			sourcebytes = byt;
+			pktgenif_getresults(1, NULL, NULL, &cnt, &byt);
+			sinkcnt += cnt;
+			sinkbytes = byt;
+		}
 	} else {
 		assert(0);
 	}

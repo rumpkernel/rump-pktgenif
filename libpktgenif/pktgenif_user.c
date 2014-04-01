@@ -50,7 +50,7 @@
 #include "pktgenif.h"
 #include "pkt_iphdr.h"
 
-#define IF_MAX 32
+#define IF_MAX 64
 #define IF_NOT_MAX jokejokelaughlaugh
 
 #ifdef USE_LTTNG

@@ -9,31 +9,32 @@ RUMPRUNDIR=/home/pooka/src/rumprun
 
 SERVER=${1}
 CMD=${2}
+NUMIF=${3}
+
+if [ "${CMD}" = "route" ]; then
+	lastif=$((2*${NUMIF}))
+	IFACES=$(yes | sed -ne "=;${lastif}q")
+else
+	IFACES="1"
+fi
 
 export RUMP_SERVER=${1}
 export PATH="${RUMPRUNDIR}/bin"
 
 sysctl -w net.inet.udp.sendspace=200000
 
-if [ "${CMD}" = "route" ]; then
-	IFACES="0 1"
-else
-	IFACES="0"
-fi
-
 for num in ${IFACES} ; do
+	num=$((num-1))
 	ifconfig pg${num} create
 	ifconfig pg${num} inet $((${num}+1)).0.0.1
 	ifconfig pg${num} ip4csum
 	ifconfig pg${num} udp4csum
 	ifconfig pg${num} mtu 9000
 	ifconfig pg${num} 
+	arp -s $((${num}+1)).0.0.2 12:23:34:45:${num}
 done
-
-arp -s 1.0.0.2 12:23:34:45:56
 
 if [ "${CMD}" = "route" ]; then
 	sysctl -w net.inet.ip.forwarding=1
-	arp -s 2.0.0.2 12:23:34:45:65
 	route show
 fi
