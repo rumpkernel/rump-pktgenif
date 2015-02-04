@@ -1,7 +1,7 @@
 PROG=	testtool
 SRCS=	testtool.c
 
-LDADD=	-Wl,--whole-archive -lrumpnet_pktgenif -lrumpnet_netinet -lrumpnet_net -lrumpnet -lrump -lrumpuser -Wl,--no-whole-archive
+LDADD=	-Wl,--whole-archive -lrumpnet_pktgenif -lrumpnet_netinet -lrumpnet_net -lrumpnet -lrumpkern_sysproxy -lrump -lrumpuser -Wl,--no-whole-archive
 
 NOMAN=1
 
