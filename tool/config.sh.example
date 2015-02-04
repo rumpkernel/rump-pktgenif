@@ -5,7 +5,15 @@
 #
 
 # edit me!
-RUMPRUNDIR=/home/pooka/src/rumprun
+RUMPRUNDIR=/home/pooka/rumpkernel/rumprun-posix
+
+# don't edit me!
+die ()
+{
+
+	echo $*
+	exit 1
+}
 
 SERVER=${1}
 CMD=${2}
@@ -19,7 +27,12 @@ else
 fi
 
 export RUMP_SERVER=${1}
-export PATH="${RUMPRUNDIR}/bin"
+. "${RUMPRUNDIR}/rumpremote.sh" || die failed to source rumpremote.sh
+
+# sanity check
+for x in sysctl ifconfig arp route; do
+	rumpremote_hascmd ${x} >/dev/null || die rumprun cmd ${x} missing
+done
 
 sysctl -w net.inet.udp.sendspace=200000
 
