@@ -165,10 +165,10 @@ VIFHYPER_DYING(struct virtif_user *viu)
 }
 void VIFHYPER_DESTROY(struct virtif_user *viu) { }
 
-static size_t ehoff = 0;
-static size_t ipoff = sizeof(struct pktgen_ether_header);
-static size_t udpoff = sizeof(struct pktgen_ether_header)
-			+ sizeof(struct pktgen_ip);
+static const size_t ehoff = 0;
+static const size_t ipoff = sizeof(struct pktgen_ether_header);
+static const size_t udpoff = sizeof(struct pktgen_ether_header)
+			   + sizeof(struct pktgen_ip);
 
 static void *
 primepacket(uint8_t *enaddr, int pktlen, const char *src, const char *dst)
