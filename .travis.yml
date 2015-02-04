@@ -7,7 +7,7 @@ before_script:
 - git clone https://github.com/rumpkernel/buildrump.sh
 
 script:
-- ./buildrump.sh/buildrump.sh -T rumptools
+- ./buildrump.sh/buildrump.sh -q -T rumptools
 - ./rumptools/rumpmake
 
 notifications:
