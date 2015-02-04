@@ -178,7 +178,7 @@ primepacket(uint8_t *enaddr, int pktlen, const char *src, const char *dst)
 	struct pktgen_ip ip; 
 	struct pktgen_udphdr udp;
 
-	assert(pktlen > udpoff);
+	assert((size_t)pktlen > udpoff);
 
 	mem = malloc(pktlen);
 	if (!mem)
