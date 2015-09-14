@@ -1,11 +1,11 @@
 #!/bin/sh
 
 #
-# Configure testtool network stack with rumprun.
+# Configure testtool network stack with rumpctrl.
 #
 
 # edit me!
-RUMPRUNDIR=/home/pooka/rumpkernel/rumprun-posix
+RUMPCTRLDIR=/home/pooka/rumpkernel/rumpctrl
 
 # don't edit me!
 die ()
@@ -27,11 +27,11 @@ else
 fi
 
 export RUMP_SERVER=${1}
-. "${RUMPRUNDIR}/rumpremote.sh" || die failed to source rumpremote.sh
+. "${RUMPCTRLDIR}/rumpctrl.sh" || die failed to source rumpctrl.sh
 
 # sanity check
 for x in sysctl ifconfig arp route; do
-	rumpremote_hascmd ${x} >/dev/null || die rumprun cmd ${x} missing
+	rumpctrl_hascmd ${x} >/dev/null || die rumpctrl cmd ${x} missing
 done
 
 sysctl -w net.inet.udp.sendspace=200000
